@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name glider)(type Legacy)(uri ${KIPRJMOD}/glider.lib)(options "")(descr ""))
+  (lib (name atlas)(type Legacy)(uri /home/bt/Documents/atlas/atlas_hw/atlas.lib)(options "")(descr ""))
+)
