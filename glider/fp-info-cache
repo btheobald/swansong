@@ -1,4 +1,4 @@
-15184521311231704
+15186135518662704
 Battery
 BatteryHolder_Bulgin_BX0036_1xC
 Bulgin Battery Holder, BX0036, Battery Type C (http://www.bulgin.com/media/bulgin/data/Battery_holders.pdf)
@@ -68662,6 +68662,13 @@ DFN DFN_QFN
 0
 11
 10
+atlas
+Diodes_PowerDI3333-8
+Diodes Incorporated PowerDI3333-8, Plastic Dual Flat No Lead Package, 3.3x3.3x0.8mm Body, https://www.diodes.com/assets/Package-Files/PowerDI3333-8.pdf
+PowerDI 0.65
+0
+13
+3
 atlas
 Elara-1
 
