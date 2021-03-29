@@ -1,0 +1,274 @@
+ARM GAS  /tmp/ccmhQvXs.s 			page 1
+
+
+   1              		.cpu cortex-m4
+   2              		.eabi_attribute 27, 1
+   3              		.eabi_attribute 28, 1
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"app_fatfs.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.section	.text.MX_FATFS_Init,"ax",%progbits
+  18              		.align	1
+  19              		.global	MX_FATFS_Init
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  23              		.fpu fpv4-sp-d16
+  25              	MX_FATFS_Init:
+  26              	.LFB329:
+  27              		.file 1 "FATFS/App/app_fatfs.c"
+   1:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN Header */
+   2:FATFS/App/app_fatfs.c **** /**
+   3:FATFS/App/app_fatfs.c ****   ******************************************************************************
+   4:FATFS/App/app_fatfs.c ****   * @file   app_fatfs.c
+   5:FATFS/App/app_fatfs.c ****   * @brief  Code for fatfs applications
+   6:FATFS/App/app_fatfs.c ****   ******************************************************************************
+   7:FATFS/App/app_fatfs.c ****   * @attention
+   8:FATFS/App/app_fatfs.c ****   *
+   9:FATFS/App/app_fatfs.c ****   * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+  10:FATFS/App/app_fatfs.c ****   * All rights reserved.</center></h2>
+  11:FATFS/App/app_fatfs.c ****   *
+  12:FATFS/App/app_fatfs.c ****   * This software component is licensed by ST under Ultimate Liberty license
+  13:FATFS/App/app_fatfs.c ****   * SLA0044, the "License"; You may not use this file except in compliance with
+  14:FATFS/App/app_fatfs.c ****   * the License. You may obtain a copy of the License at:
+  15:FATFS/App/app_fatfs.c ****   *                             www.st.com/SLA0044
+  16:FATFS/App/app_fatfs.c ****   *
+  17:FATFS/App/app_fatfs.c ****   ******************************************************************************
+  18:FATFS/App/app_fatfs.c ****   */
+  19:FATFS/App/app_fatfs.c **** /* USER CODE END Header */
+  20:FATFS/App/app_fatfs.c **** 
+  21:FATFS/App/app_fatfs.c **** /* Includes ------------------------------------------------------------------*/
+  22:FATFS/App/app_fatfs.c **** #include "app_fatfs.h"
+  23:FATFS/App/app_fatfs.c **** #include "main.h"
+  24:FATFS/App/app_fatfs.c **** 
+  25:FATFS/App/app_fatfs.c **** /* Private includes ----------------------------------------------------------*/
+  26:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN Includes */
+  27:FATFS/App/app_fatfs.c **** 
+  28:FATFS/App/app_fatfs.c **** /* USER CODE END Includes */
+  29:FATFS/App/app_fatfs.c **** 
+  30:FATFS/App/app_fatfs.c **** /* Private typedef -----------------------------------------------------------*/
+  31:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN PTD */
+ARM GAS  /tmp/ccmhQvXs.s 			page 2
+
+
+  32:FATFS/App/app_fatfs.c **** typedef enum {
+  33:FATFS/App/app_fatfs.c ****   APPLICATION_IDLE = 0,
+  34:FATFS/App/app_fatfs.c ****   APPLICATION_INIT,
+  35:FATFS/App/app_fatfs.c ****   APPLICATION_RUNNING,
+  36:FATFS/App/app_fatfs.c ****   APPLICATION_SD_UNPLUGGED,
+  37:FATFS/App/app_fatfs.c **** }FS_FileOperationsTypeDef;
+  38:FATFS/App/app_fatfs.c **** /* USER CODE END PTD */
+  39:FATFS/App/app_fatfs.c **** 
+  40:FATFS/App/app_fatfs.c **** /* Private define ------------------------------------------------------------*/
+  41:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN PD */
+  42:FATFS/App/app_fatfs.c **** 
+  43:FATFS/App/app_fatfs.c **** /* USER CODE END PD */
+  44:FATFS/App/app_fatfs.c **** 
+  45:FATFS/App/app_fatfs.c **** /* Private macro -------------------------------------------------------------*/
+  46:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN PM */
+  47:FATFS/App/app_fatfs.c **** 
+  48:FATFS/App/app_fatfs.c **** /* USER CODE END PM */
+  49:FATFS/App/app_fatfs.c **** 
+  50:FATFS/App/app_fatfs.c **** /* Private variables ---------------------------------------------------------*/
+  51:FATFS/App/app_fatfs.c **** FATFS USERFatFs;    /* File system object for USER logical drive */
+  52:FATFS/App/app_fatfs.c **** FIL USERFile;       /* File  object for USER */
+  53:FATFS/App/app_fatfs.c **** char USERPath[4];   /* USER logical drive path */
+  54:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN PV */
+  55:FATFS/App/app_fatfs.c **** FS_FileOperationsTypeDef Appli_state = APPLICATION_IDLE;
+  56:FATFS/App/app_fatfs.c **** /* USER CODE END PV */
+  57:FATFS/App/app_fatfs.c **** 
+  58:FATFS/App/app_fatfs.c **** /* Private function prototypes -----------------------------------------------*/
+  59:FATFS/App/app_fatfs.c **** /* USER CODE BEGIN PFP */
+  60:FATFS/App/app_fatfs.c **** 
+  61:FATFS/App/app_fatfs.c **** /* USER CODE END PFP */
+  62:FATFS/App/app_fatfs.c **** 
+  63:FATFS/App/app_fatfs.c **** /**
+  64:FATFS/App/app_fatfs.c ****   * @brief  FatFs initialization
+  65:FATFS/App/app_fatfs.c ****   * @param  None
+  66:FATFS/App/app_fatfs.c ****   * @retval Initialization result
+  67:FATFS/App/app_fatfs.c ****   */
+  68:FATFS/App/app_fatfs.c **** int32_t MX_FATFS_Init(void)
+  69:FATFS/App/app_fatfs.c **** {
+  28              		.loc 1 69 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32 0000 08B5     		push	{r3, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 3, -8
+  36              		.cfi_offset 14, -4
+  70:FATFS/App/app_fatfs.c ****   /*## FatFS: Link the disk I/O driver(s)  ###########################*/
+  71:FATFS/App/app_fatfs.c **** 
+  72:FATFS/App/app_fatfs.c **** if (FATFS_LinkDriver(&USER_Driver, USERPath) != 0)
+  37              		.loc 1 72 0
+  38 0002 0649     		ldr	r1, .L5
+  39 0004 0648     		ldr	r0, .L5+4
+  40 0006 FFF7FEFF 		bl	FATFS_LinkDriver
+  41              	.LVL0:
+  42 000a 18B9     		cbnz	r0, .L3
+  73:FATFS/App/app_fatfs.c ****   /* USER CODE BEGIN FATFS_Init */
+ARM GAS  /tmp/ccmhQvXs.s 			page 3
+
+
+  74:FATFS/App/app_fatfs.c ****   {
+  75:FATFS/App/app_fatfs.c ****     return APP_ERROR;
+  76:FATFS/App/app_fatfs.c ****   }
+  77:FATFS/App/app_fatfs.c ****   else
+  78:FATFS/App/app_fatfs.c ****   {
+  79:FATFS/App/app_fatfs.c ****     Appli_state = APPLICATION_INIT;
+  43              		.loc 1 79 0
+  44 000c 054B     		ldr	r3, .L5+8
+  45 000e 0122     		movs	r2, #1
+  46 0010 1A70     		strb	r2, [r3]
+  47              	.L1:
+  80:FATFS/App/app_fatfs.c ****     return APP_OK;
+  81:FATFS/App/app_fatfs.c ****   }
+  82:FATFS/App/app_fatfs.c ****   /* USER CODE END FATFS_Init */
+  83:FATFS/App/app_fatfs.c **** }
+  48              		.loc 1 83 0
+  49 0012 08BD     		pop	{r3, pc}
+  50              	.L3:
+  75:FATFS/App/app_fatfs.c ****   }
+  51              		.loc 1 75 0
+  52 0014 4FF0FF30 		mov	r0, #-1
+  53 0018 FBE7     		b	.L1
+  54              	.L6:
+  55 001a 00BF     		.align	2
+  56              	.L5:
+  57 001c 00000000 		.word	USERPath
+  58 0020 00000000 		.word	USER_Driver
+  59 0024 00000000 		.word	.LANCHOR0
+  60              		.cfi_endproc
+  61              	.LFE329:
+  63              		.section	.text.MX_FATFS_Process,"ax",%progbits
+  64              		.align	1
+  65              		.global	MX_FATFS_Process
+  66              		.syntax unified
+  67              		.thumb
+  68              		.thumb_func
+  69              		.fpu fpv4-sp-d16
+  71              	MX_FATFS_Process:
+  72              	.LFB330:
+  84:FATFS/App/app_fatfs.c **** 
+  85:FATFS/App/app_fatfs.c **** /**
+  86:FATFS/App/app_fatfs.c ****   * @brief  FatFs application main process
+  87:FATFS/App/app_fatfs.c ****   * @param  None
+  88:FATFS/App/app_fatfs.c ****   * @retval Process result
+  89:FATFS/App/app_fatfs.c ****   */
+  90:FATFS/App/app_fatfs.c **** int32_t MX_FATFS_Process(void)
+  91:FATFS/App/app_fatfs.c **** {
+  73              		.loc 1 91 0
+  74              		.cfi_startproc
+  75              		@ args = 0, pretend = 0, frame = 0
+  76              		@ frame_needed = 0, uses_anonymous_args = 0
+  77              		@ link register save eliminated.
+  78              	.LVL1:
+  92:FATFS/App/app_fatfs.c ****   /* USER CODE BEGIN FATFS_Process */
+  93:FATFS/App/app_fatfs.c ****   int32_t process_res = APP_OK;
+  94:FATFS/App/app_fatfs.c **** 
+  95:FATFS/App/app_fatfs.c ****   return process_res;
+ARM GAS  /tmp/ccmhQvXs.s 			page 4
+
+
+  96:FATFS/App/app_fatfs.c ****   /* USER CODE END FATFS_Process */
+  97:FATFS/App/app_fatfs.c **** }
+  79              		.loc 1 97 0
+  80 0000 0020     		movs	r0, #0
+  81 0002 7047     		bx	lr
+  82              		.cfi_endproc
+  83              	.LFE330:
+  85              		.section	.text.get_fattime,"ax",%progbits
+  86              		.align	1
+  87              		.global	get_fattime
+  88              		.syntax unified
+  89              		.thumb
+  90              		.thumb_func
+  91              		.fpu fpv4-sp-d16
+  93              	get_fattime:
+  94              	.LFB331:
+  98:FATFS/App/app_fatfs.c **** 
+  99:FATFS/App/app_fatfs.c **** /**
+ 100:FATFS/App/app_fatfs.c ****   * @brief  Gets Time from RTC (generated when FS_NORTC==0; see ff.c)
+ 101:FATFS/App/app_fatfs.c ****   * @param  None
+ 102:FATFS/App/app_fatfs.c ****   * @retval Time in DWORD
+ 103:FATFS/App/app_fatfs.c ****   */
+ 104:FATFS/App/app_fatfs.c **** DWORD get_fattime(void)
+ 105:FATFS/App/app_fatfs.c **** {
+  95              		.loc 1 105 0
+  96              		.cfi_startproc
+  97              		@ args = 0, pretend = 0, frame = 0
+  98              		@ frame_needed = 0, uses_anonymous_args = 0
+  99              		@ link register save eliminated.
+ 106:FATFS/App/app_fatfs.c ****   /* USER CODE BEGIN get_fattime */
+ 107:FATFS/App/app_fatfs.c ****   return 0;
+ 108:FATFS/App/app_fatfs.c ****   /* USER CODE END get_fattime */
+ 109:FATFS/App/app_fatfs.c **** }
+ 100              		.loc 1 109 0
+ 101 0000 0020     		movs	r0, #0
+ 102 0002 7047     		bx	lr
+ 103              		.cfi_endproc
+ 104              	.LFE331:
+ 106              		.global	Appli_state
+ 107              		.comm	USERPath,4,4
+ 108              		.comm	USERFile,560,4
+ 109              		.comm	USERFatFs,560,4
+ 110              		.section	.bss.Appli_state,"aw",%nobits
+ 111              		.set	.LANCHOR0,. + 0
+ 114              	Appli_state:
+ 115 0000 00       		.space	1
+ 116              		.text
+ 117              	.Letext0:
+ 118              		.file 2 "Middlewares/Third_Party/FatFs/src/integer.h"
+ 119              		.file 3 "/usr/include/newlib/machine/_default_types.h"
+ 120              		.file 4 "/usr/include/newlib/sys/_stdint.h"
+ 121              		.file 5 "Drivers/CMSIS/Include/core_cm4.h"
+ 122              		.file 6 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h"
+ 123              		.file 7 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h"
+ 124              		.file 8 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h"
+ 125              		.file 9 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h"
+ 126              		.file 10 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h"
+ARM GAS  /tmp/ccmhQvXs.s 			page 5
+
+
+ 127              		.file 11 "/usr/include/newlib/sys/lock.h"
+ 128              		.file 12 "/usr/include/newlib/sys/_types.h"
+ 129              		.file 13 "/usr/lib/gcc/arm-none-eabi/7.3.1/include/stddef.h"
+ 130              		.file 14 "/usr/include/newlib/sys/reent.h"
+ 131              		.file 15 "/usr/include/newlib/stdlib.h"
+ 132              		.file 16 "Middlewares/Third_Party/FatFs/src/ff.h"
+ 133              		.file 17 "Middlewares/Third_Party/FatFs/src/diskio.h"
+ 134              		.file 18 "Middlewares/Third_Party/FatFs/src/ff_gen_drv.h"
+ 135              		.file 19 "FATFS/Target/user_diskio.h"
+ 136              		.file 20 "FATFS/App/app_fatfs.h"
+ARM GAS  /tmp/ccmhQvXs.s 			page 6
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 app_fatfs.c
+     /tmp/ccmhQvXs.s:18     .text.MX_FATFS_Init:0000000000000000 $t
+     /tmp/ccmhQvXs.s:25     .text.MX_FATFS_Init:0000000000000000 MX_FATFS_Init
+     /tmp/ccmhQvXs.s:57     .text.MX_FATFS_Init:000000000000001c $d
+                            *COM*:0000000000000004 USERPath
+     /tmp/ccmhQvXs.s:64     .text.MX_FATFS_Process:0000000000000000 $t
+     /tmp/ccmhQvXs.s:71     .text.MX_FATFS_Process:0000000000000000 MX_FATFS_Process
+     /tmp/ccmhQvXs.s:86     .text.get_fattime:0000000000000000 $t
+     /tmp/ccmhQvXs.s:93     .text.get_fattime:0000000000000000 get_fattime
+     /tmp/ccmhQvXs.s:114    .bss.Appli_state:0000000000000000 Appli_state
+                            *COM*:0000000000000230 USERFile
+                            *COM*:0000000000000230 USERFatFs
+     /tmp/ccmhQvXs.s:115    .bss.Appli_state:0000000000000000 $d
+
+UNDEFINED SYMBOLS
+FATFS_LinkDriver
+USER_Driver

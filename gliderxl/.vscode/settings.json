@@ -1,0 +1,10 @@
+{
+    "C_Cpp.default.configurationProvider": "go2sh.cmake-integration",
+    "files.associations": {
+        "*.tcc": "cpp",
+        "*.cuh": "c",
+        "random": "c",
+        "lwgps.h": "c",
+        "usart.h": "c"
+    }
+}

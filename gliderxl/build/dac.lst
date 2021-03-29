@@ -1,0 +1,395 @@
+ARM GAS  /tmp/ccGy7zZF.s 			page 1
+
+
+   1              		.cpu cortex-m4
+   2              		.eabi_attribute 27, 1
+   3              		.eabi_attribute 28, 1
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"dac.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.section	.text.MX_DAC3_Init,"ax",%progbits
+  18              		.align	1
+  19              		.global	MX_DAC3_Init
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  23              		.fpu fpv4-sp-d16
+  25              	MX_DAC3_Init:
+  26              	.LFB329:
+  27              		.file 1 "Core/Src/dac.c"
+   1:Core/Src/dac.c **** /**
+   2:Core/Src/dac.c ****   ******************************************************************************
+   3:Core/Src/dac.c ****   * @file    dac.c
+   4:Core/Src/dac.c ****   * @brief   This file provides code for the configuration
+   5:Core/Src/dac.c ****   *          of the DAC instances.
+   6:Core/Src/dac.c ****   ******************************************************************************
+   7:Core/Src/dac.c ****   * @attention
+   8:Core/Src/dac.c ****   *
+   9:Core/Src/dac.c ****   * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+  10:Core/Src/dac.c ****   * All rights reserved.</center></h2>
+  11:Core/Src/dac.c ****   *
+  12:Core/Src/dac.c ****   * This software component is licensed by ST under Ultimate Liberty license
+  13:Core/Src/dac.c ****   * SLA0044, the "License"; You may not use this file except in compliance with
+  14:Core/Src/dac.c ****   * the License. You may obtain a copy of the License at:
+  15:Core/Src/dac.c ****   *                             www.st.com/SLA0044
+  16:Core/Src/dac.c ****   *
+  17:Core/Src/dac.c ****   ******************************************************************************
+  18:Core/Src/dac.c ****   */
+  19:Core/Src/dac.c **** 
+  20:Core/Src/dac.c **** /* Includes ------------------------------------------------------------------*/
+  21:Core/Src/dac.c **** #include "dac.h"
+  22:Core/Src/dac.c **** 
+  23:Core/Src/dac.c **** /* USER CODE BEGIN 0 */
+  24:Core/Src/dac.c **** 
+  25:Core/Src/dac.c **** /* USER CODE END 0 */
+  26:Core/Src/dac.c **** 
+  27:Core/Src/dac.c **** DAC_HandleTypeDef hdac3;
+  28:Core/Src/dac.c **** 
+  29:Core/Src/dac.c **** /* DAC3 init function */
+  30:Core/Src/dac.c **** void MX_DAC3_Init(void)
+  31:Core/Src/dac.c **** {
+ARM GAS  /tmp/ccGy7zZF.s 			page 2
+
+
+  28              		.loc 1 31 0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 48
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32 0000 00B5     		push	{lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 4
+  35              		.cfi_offset 14, -4
+  36 0002 8DB0     		sub	sp, sp, #52
+  37              	.LCFI1:
+  38              		.cfi_def_cfa_offset 56
+  32:Core/Src/dac.c **** 
+  33:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_Init 0 */
+  34:Core/Src/dac.c **** 
+  35:Core/Src/dac.c ****   /* USER CODE END DAC3_Init 0 */
+  36:Core/Src/dac.c **** 
+  37:Core/Src/dac.c ****   DAC_ChannelConfTypeDef sConfig = {0};
+  39              		.loc 1 37 0
+  40 0004 3022     		movs	r2, #48
+  41 0006 0021     		movs	r1, #0
+  42 0008 6846     		mov	r0, sp
+  43 000a FFF7FEFF 		bl	memset
+  44              	.LVL0:
+  38:Core/Src/dac.c **** 
+  39:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_Init 1 */
+  40:Core/Src/dac.c **** 
+  41:Core/Src/dac.c ****   /* USER CODE END DAC3_Init 1 */
+  42:Core/Src/dac.c ****   /** DAC Initialization
+  43:Core/Src/dac.c ****   */
+  44:Core/Src/dac.c ****   hdac3.Instance = DAC3;
+  45              		.loc 1 44 0
+  46 000e 1048     		ldr	r0, .L7
+  47 0010 104B     		ldr	r3, .L7+4
+  48 0012 0360     		str	r3, [r0]
+  45:Core/Src/dac.c ****   if (HAL_DAC_Init(&hdac3) != HAL_OK)
+  49              		.loc 1 45 0
+  50 0014 FFF7FEFF 		bl	HAL_DAC_Init
+  51              	.LVL1:
+  52 0018 A0B9     		cbnz	r0, .L5
+  53              	.L2:
+  46:Core/Src/dac.c ****   {
+  47:Core/Src/dac.c ****     Error_Handler();
+  48:Core/Src/dac.c ****   }
+  49:Core/Src/dac.c ****   /** DAC channel OUT1 config
+  50:Core/Src/dac.c ****   */
+  51:Core/Src/dac.c ****   sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
+  54              		.loc 1 51 0
+  55 001a 0223     		movs	r3, #2
+  56 001c 0093     		str	r3, [sp]
+  52:Core/Src/dac.c ****   sConfig.DAC_DMADoubleDataMode = DISABLE;
+  57              		.loc 1 52 0
+  58 001e 0022     		movs	r2, #0
+  59 0020 8DF80420 		strb	r2, [sp, #4]
+  53:Core/Src/dac.c ****   sConfig.DAC_SignedFormat = DISABLE;
+  60              		.loc 1 53 0
+  61 0024 8DF80520 		strb	r2, [sp, #5]
+  54:Core/Src/dac.c ****   sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
+ARM GAS  /tmp/ccGy7zZF.s 			page 3
+
+
+  62              		.loc 1 54 0
+  63 0028 0292     		str	r2, [sp, #8]
+  55:Core/Src/dac.c ****   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  64              		.loc 1 55 0
+  65 002a 0392     		str	r2, [sp, #12]
+  56:Core/Src/dac.c ****   sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
+  66              		.loc 1 56 0
+  67 002c 0492     		str	r2, [sp, #16]
+  57:Core/Src/dac.c ****   sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
+  68              		.loc 1 57 0
+  69 002e 0593     		str	r3, [sp, #20]
+  58:Core/Src/dac.c ****   sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_INTERNAL;
+  70              		.loc 1 58 0
+  71 0030 0693     		str	r3, [sp, #24]
+  59:Core/Src/dac.c ****   sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
+  72              		.loc 1 59 0
+  73 0032 0792     		str	r2, [sp, #28]
+  60:Core/Src/dac.c ****   if (HAL_DAC_ConfigChannel(&hdac3, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  74              		.loc 1 60 0
+  75 0034 6946     		mov	r1, sp
+  76 0036 0648     		ldr	r0, .L7
+  77 0038 FFF7FEFF 		bl	HAL_DAC_ConfigChannel
+  78              	.LVL2:
+  79 003c 28B9     		cbnz	r0, .L6
+  80              	.L1:
+  61:Core/Src/dac.c ****   {
+  62:Core/Src/dac.c ****     Error_Handler();
+  63:Core/Src/dac.c ****   }
+  64:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_Init 2 */
+  65:Core/Src/dac.c **** 
+  66:Core/Src/dac.c ****   /* USER CODE END DAC3_Init 2 */
+  67:Core/Src/dac.c **** 
+  68:Core/Src/dac.c **** }
+  81              		.loc 1 68 0
+  82 003e 0DB0     		add	sp, sp, #52
+  83              	.LCFI2:
+  84              		.cfi_remember_state
+  85              		.cfi_def_cfa_offset 4
+  86              		@ sp needed
+  87 0040 5DF804FB 		ldr	pc, [sp], #4
+  88              	.L5:
+  89              	.LCFI3:
+  90              		.cfi_restore_state
+  47:Core/Src/dac.c ****   }
+  91              		.loc 1 47 0
+  92 0044 FFF7FEFF 		bl	Error_Handler
+  93              	.LVL3:
+  94 0048 E7E7     		b	.L2
+  95              	.L6:
+  62:Core/Src/dac.c ****   }
+  96              		.loc 1 62 0
+  97 004a FFF7FEFF 		bl	Error_Handler
+  98              	.LVL4:
+  99              		.loc 1 68 0
+ 100 004e F6E7     		b	.L1
+ 101              	.L8:
+ 102              		.align	2
+ARM GAS  /tmp/ccGy7zZF.s 			page 4
+
+
+ 103              	.L7:
+ 104 0050 00000000 		.word	hdac3
+ 105 0054 00100050 		.word	1342181376
+ 106              		.cfi_endproc
+ 107              	.LFE329:
+ 109              		.section	.text.HAL_DAC_MspInit,"ax",%progbits
+ 110              		.align	1
+ 111              		.global	HAL_DAC_MspInit
+ 112              		.syntax unified
+ 113              		.thumb
+ 114              		.thumb_func
+ 115              		.fpu fpv4-sp-d16
+ 117              	HAL_DAC_MspInit:
+ 118              	.LFB330:
+  69:Core/Src/dac.c **** 
+  70:Core/Src/dac.c **** void HAL_DAC_MspInit(DAC_HandleTypeDef* dacHandle)
+  71:Core/Src/dac.c **** {
+ 119              		.loc 1 71 0
+ 120              		.cfi_startproc
+ 121              		@ args = 0, pretend = 0, frame = 8
+ 122              		@ frame_needed = 0, uses_anonymous_args = 0
+ 123              	.LVL5:
+  72:Core/Src/dac.c **** 
+  73:Core/Src/dac.c ****   if(dacHandle->Instance==DAC3)
+ 124              		.loc 1 73 0
+ 125 0000 0268     		ldr	r2, [r0]
+ 126 0002 0F4B     		ldr	r3, .L16
+ 127 0004 9A42     		cmp	r2, r3
+ 128 0006 00D0     		beq	.L15
+ 129 0008 7047     		bx	lr
+ 130              	.L15:
+  71:Core/Src/dac.c **** 
+ 131              		.loc 1 71 0
+ 132 000a 00B5     		push	{lr}
+ 133              	.LCFI4:
+ 134              		.cfi_def_cfa_offset 4
+ 135              		.cfi_offset 14, -4
+ 136 000c 83B0     		sub	sp, sp, #12
+ 137              	.LCFI5:
+ 138              		.cfi_def_cfa_offset 16
+ 139              	.LBB2:
+  74:Core/Src/dac.c ****   {
+  75:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_MspInit 0 */
+  76:Core/Src/dac.c **** 
+  77:Core/Src/dac.c ****   /* USER CODE END DAC3_MspInit 0 */
+  78:Core/Src/dac.c ****     /* DAC3 clock enable */
+  79:Core/Src/dac.c ****     __HAL_RCC_DAC3_CLK_ENABLE();
+ 140              		.loc 1 79 0
+ 141 000e 03F17043 		add	r3, r3, #-268435456
+ 142 0012 03F50033 		add	r3, r3, #131072
+ 143 0016 DA6C     		ldr	r2, [r3, #76]
+ 144 0018 42F48022 		orr	r2, r2, #262144
+ 145 001c DA64     		str	r2, [r3, #76]
+ 146 001e DB6C     		ldr	r3, [r3, #76]
+ 147 0020 03F48023 		and	r3, r3, #262144
+ 148 0024 0193     		str	r3, [sp, #4]
+ 149 0026 019B     		ldr	r3, [sp, #4]
+ARM GAS  /tmp/ccGy7zZF.s 			page 5
+
+
+ 150              	.LBE2:
+  80:Core/Src/dac.c **** 
+  81:Core/Src/dac.c ****     /* DAC3 interrupt Init */
+  82:Core/Src/dac.c ****     HAL_NVIC_SetPriority(TIM6_DAC_IRQn, 0, 0);
+ 151              		.loc 1 82 0
+ 152 0028 0022     		movs	r2, #0
+ 153 002a 1146     		mov	r1, r2
+ 154 002c 3620     		movs	r0, #54
+ 155              	.LVL6:
+ 156 002e FFF7FEFF 		bl	HAL_NVIC_SetPriority
+ 157              	.LVL7:
+  83:Core/Src/dac.c ****     HAL_NVIC_EnableIRQ(TIM6_DAC_IRQn);
+ 158              		.loc 1 83 0
+ 159 0032 3620     		movs	r0, #54
+ 160 0034 FFF7FEFF 		bl	HAL_NVIC_EnableIRQ
+ 161              	.LVL8:
+  84:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_MspInit 1 */
+  85:Core/Src/dac.c **** 
+  86:Core/Src/dac.c ****   /* USER CODE END DAC3_MspInit 1 */
+  87:Core/Src/dac.c ****   }
+  88:Core/Src/dac.c **** }
+ 162              		.loc 1 88 0
+ 163 0038 03B0     		add	sp, sp, #12
+ 164              	.LCFI6:
+ 165              		.cfi_def_cfa_offset 4
+ 166              		@ sp needed
+ 167 003a 5DF804FB 		ldr	pc, [sp], #4
+ 168              	.L17:
+ 169 003e 00BF     		.align	2
+ 170              	.L16:
+ 171 0040 00100050 		.word	1342181376
+ 172              		.cfi_endproc
+ 173              	.LFE330:
+ 175              		.section	.text.HAL_DAC_MspDeInit,"ax",%progbits
+ 176              		.align	1
+ 177              		.global	HAL_DAC_MspDeInit
+ 178              		.syntax unified
+ 179              		.thumb
+ 180              		.thumb_func
+ 181              		.fpu fpv4-sp-d16
+ 183              	HAL_DAC_MspDeInit:
+ 184              	.LFB331:
+  89:Core/Src/dac.c **** 
+  90:Core/Src/dac.c **** void HAL_DAC_MspDeInit(DAC_HandleTypeDef* dacHandle)
+  91:Core/Src/dac.c **** {
+ 185              		.loc 1 91 0
+ 186              		.cfi_startproc
+ 187              		@ args = 0, pretend = 0, frame = 0
+ 188              		@ frame_needed = 0, uses_anonymous_args = 0
+ 189              	.LVL9:
+ 190 0000 08B5     		push	{r3, lr}
+ 191              	.LCFI7:
+ 192              		.cfi_def_cfa_offset 8
+ 193              		.cfi_offset 3, -8
+ 194              		.cfi_offset 14, -4
+  92:Core/Src/dac.c **** 
+  93:Core/Src/dac.c ****   if(dacHandle->Instance==DAC3)
+ARM GAS  /tmp/ccGy7zZF.s 			page 6
+
+
+ 195              		.loc 1 93 0
+ 196 0002 0268     		ldr	r2, [r0]
+ 197 0004 064B     		ldr	r3, .L22
+ 198 0006 9A42     		cmp	r2, r3
+ 199 0008 00D0     		beq	.L21
+ 200              	.LVL10:
+ 201              	.L18:
+  94:Core/Src/dac.c ****   {
+  95:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_MspDeInit 0 */
+  96:Core/Src/dac.c **** 
+  97:Core/Src/dac.c ****   /* USER CODE END DAC3_MspDeInit 0 */
+  98:Core/Src/dac.c ****     /* Peripheral clock disable */
+  99:Core/Src/dac.c ****     __HAL_RCC_DAC3_CLK_DISABLE();
+ 100:Core/Src/dac.c **** 
+ 101:Core/Src/dac.c ****     /* DAC3 interrupt Deinit */
+ 102:Core/Src/dac.c ****     HAL_NVIC_DisableIRQ(TIM6_DAC_IRQn);
+ 103:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_MspDeInit 1 */
+ 104:Core/Src/dac.c **** 
+ 105:Core/Src/dac.c ****   /* USER CODE END DAC3_MspDeInit 1 */
+ 106:Core/Src/dac.c ****   }
+ 107:Core/Src/dac.c **** }
+ 202              		.loc 1 107 0
+ 203 000a 08BD     		pop	{r3, pc}
+ 204              	.LVL11:
+ 205              	.L21:
+  99:Core/Src/dac.c **** 
+ 206              		.loc 1 99 0
+ 207 000c 054A     		ldr	r2, .L22+4
+ 208 000e D36C     		ldr	r3, [r2, #76]
+ 209 0010 23F48023 		bic	r3, r3, #262144
+ 210 0014 D364     		str	r3, [r2, #76]
+ 102:Core/Src/dac.c ****   /* USER CODE BEGIN DAC3_MspDeInit 1 */
+ 211              		.loc 1 102 0
+ 212 0016 3620     		movs	r0, #54
+ 213              	.LVL12:
+ 214 0018 FFF7FEFF 		bl	HAL_NVIC_DisableIRQ
+ 215              	.LVL13:
+ 216              		.loc 1 107 0
+ 217 001c F5E7     		b	.L18
+ 218              	.L23:
+ 219 001e 00BF     		.align	2
+ 220              	.L22:
+ 221 0020 00100050 		.word	1342181376
+ 222 0024 00100240 		.word	1073876992
+ 223              		.cfi_endproc
+ 224              	.LFE331:
+ 226              		.comm	hdac3,20,4
+ 227              		.text
+ 228              	.Letext0:
+ 229              		.file 2 "/usr/include/newlib/machine/_default_types.h"
+ 230              		.file 3 "/usr/include/newlib/sys/_stdint.h"
+ 231              		.file 4 "Drivers/CMSIS/Include/core_cm4.h"
+ 232              		.file 5 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h"
+ 233              		.file 6 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g484xx.h"
+ 234              		.file 7 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h"
+ 235              		.file 8 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h"
+ 236              		.file 9 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h"
+ARM GAS  /tmp/ccGy7zZF.s 			page 7
+
+
+ 237              		.file 10 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dac.h"
+ 238              		.file 11 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h"
+ 239              		.file 12 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h"
+ 240              		.file 13 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h"
+ 241              		.file 14 "Core/Inc/dac.h"
+ 242              		.file 15 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_cortex.h"
+ 243              		.file 16 "Core/Inc/main.h"
+ 244              		.file 17 "<built-in>"
+ARM GAS  /tmp/ccGy7zZF.s 			page 8
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 dac.c
+     /tmp/ccGy7zZF.s:18     .text.MX_DAC3_Init:0000000000000000 $t
+     /tmp/ccGy7zZF.s:25     .text.MX_DAC3_Init:0000000000000000 MX_DAC3_Init
+     /tmp/ccGy7zZF.s:104    .text.MX_DAC3_Init:0000000000000050 $d
+                            *COM*:0000000000000014 hdac3
+     /tmp/ccGy7zZF.s:110    .text.HAL_DAC_MspInit:0000000000000000 $t
+     /tmp/ccGy7zZF.s:117    .text.HAL_DAC_MspInit:0000000000000000 HAL_DAC_MspInit
+     /tmp/ccGy7zZF.s:171    .text.HAL_DAC_MspInit:0000000000000040 $d
+     /tmp/ccGy7zZF.s:176    .text.HAL_DAC_MspDeInit:0000000000000000 $t
+     /tmp/ccGy7zZF.s:183    .text.HAL_DAC_MspDeInit:0000000000000000 HAL_DAC_MspDeInit
+     /tmp/ccGy7zZF.s:221    .text.HAL_DAC_MspDeInit:0000000000000020 $d
+
+UNDEFINED SYMBOLS
+memset
+HAL_DAC_Init
+HAL_DAC_ConfigChannel
+Error_Handler
+HAL_NVIC_SetPriority
+HAL_NVIC_EnableIRQ
+HAL_NVIC_DisableIRQ

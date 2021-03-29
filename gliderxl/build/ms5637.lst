@@ -1,0 +1,1456 @@
+ARM GAS  /tmp/ccMf2Fv6.s 			page 1
+
+
+   1              		.cpu cortex-m4
+   2              		.eabi_attribute 27, 1
+   3              		.eabi_attribute 28, 1
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"ms5637.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.section	.text.ms5637_write_command,"ax",%progbits
+  18              		.align	1
+  19              		.syntax unified
+  20              		.thumb
+  21              		.thumb_func
+  22              		.fpu fpv4-sp-d16
+  24              	ms5637_write_command:
+  25              	.LFB333:
+  26              		.file 1 "Drivers/MS5637/ms5637.c"
+   1:Drivers/MS5637/ms5637.c **** /**
+   2:Drivers/MS5637/ms5637.c ****  * \file ms5637.c
+   3:Drivers/MS5637/ms5637.c ****  *
+   4:Drivers/MS5637/ms5637.c ****  * \brief MS5637 Temperature sensor driver source file
+   5:Drivers/MS5637/ms5637.c ****  *
+   6:Drivers/MS5637/ms5637.c ****  * Copyright (c) 2016 Measurement Specialties. All rights reserved.
+   7:Drivers/MS5637/ms5637.c ****  *
+   8:Drivers/MS5637/ms5637.c ****  * For details on programming, refer to ms5637 datasheet :
+   9:Drivers/MS5637/ms5637.c ****  * http://www.meas-spec.com/downloads/MS5637-02BA03.pdf
+  10:Drivers/MS5637/ms5637.c ****  *
+  11:Drivers/MS5637/ms5637.c ****  */
+  12:Drivers/MS5637/ms5637.c **** 
+  13:Drivers/MS5637/ms5637.c **** #include "ms5637.h"
+  14:Drivers/MS5637/ms5637.c **** #include "i2c.h"
+  15:Drivers/MS5637/ms5637.c **** 
+  16:Drivers/MS5637/ms5637.c **** #ifdef __cplusplus
+  17:Drivers/MS5637/ms5637.c **** extern "C" {
+  18:Drivers/MS5637/ms5637.c **** #endif
+  19:Drivers/MS5637/ms5637.c **** 
+  20:Drivers/MS5637/ms5637.c **** // Constants
+  21:Drivers/MS5637/ms5637.c **** 
+  22:Drivers/MS5637/ms5637.c **** // MS5637 device address
+  23:Drivers/MS5637/ms5637.c **** #define MS5637_ADDR													0xEC //0b1110110
+  24:Drivers/MS5637/ms5637.c **** 
+  25:Drivers/MS5637/ms5637.c **** // MS5637 device commands
+  26:Drivers/MS5637/ms5637.c **** #define MS5637_RESET_COMMAND										0x1E
+  27:Drivers/MS5637/ms5637.c **** #define MS5637_START_PRESSURE_ADC_CONVERSION						0x40
+  28:Drivers/MS5637/ms5637.c **** #define MS5637_START_TEMPERATURE_ADC_CONVERSION						0x50
+  29:Drivers/MS5637/ms5637.c **** #define MS5637_READ_ADC												0x00
+  30:Drivers/MS5637/ms5637.c **** 
+  31:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_OSR_MASK									0x0F
+  32:Drivers/MS5637/ms5637.c **** 
+ARM GAS  /tmp/ccMf2Fv6.s 			page 2
+
+
+  33:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_256								1000
+  34:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_512								2000
+  35:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_1024								3000
+  36:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_2048								5000
+  37:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_4096								9000
+  38:Drivers/MS5637/ms5637.c **** #define MS5637_CONVERSION_TIME_OSR_8192								17000
+  39:Drivers/MS5637/ms5637.c **** 
+  40:Drivers/MS5637/ms5637.c **** // MS5637 commands
+  41:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_0							0xA0
+  42:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_1							0xA2
+  43:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_2							0xA4
+  44:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_3							0xA6
+  45:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_4							0xA8
+  46:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_5							0xAA
+  47:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_6							0xAC
+  48:Drivers/MS5637/ms5637.c **** #define MS5637_PROM_ADDRESS_READ_ADDRESS_7							0xAE
+  49:Drivers/MS5637/ms5637.c **** 
+  50:Drivers/MS5637/ms5637.c **** // Coefficients indexes for temperature and pressure computation
+  51:Drivers/MS5637/ms5637.c **** #define MS5637_CRC_INDEX											0
+  52:Drivers/MS5637/ms5637.c **** #define MS5637_PRESSURE_SENSITIVITY_INDEX							1 
+  53:Drivers/MS5637/ms5637.c **** #define MS5637_PRESSURE_OFFSET_INDEX								2
+  54:Drivers/MS5637/ms5637.c **** #define MS5637_TEMP_COEFF_OF_PRESSURE_SENSITIVITY_INDEX				3
+  55:Drivers/MS5637/ms5637.c **** #define MS5637_TEMP_COEFF_OF_PRESSURE_OFFSET_INDEX					4
+  56:Drivers/MS5637/ms5637.c **** #define MS5637_REFERENCE_TEMPERATURE_INDEX							5
+  57:Drivers/MS5637/ms5637.c **** #define MS5637_TEMP_COEFF_OF_TEMPERATURE_INDEX						6
+  58:Drivers/MS5637/ms5637.c **** #define MS5637_COEFFICIENT_NUMBERS									7
+  59:Drivers/MS5637/ms5637.c **** 
+  60:Drivers/MS5637/ms5637.c **** // Static functions
+  61:Drivers/MS5637/ms5637.c **** static enum ms5637_status ms5637_write_command(uint8_t);
+  62:Drivers/MS5637/ms5637.c **** static enum ms5637_status ms5637_read_eeprom_coeff(uint8_t, uint16_t*);
+  63:Drivers/MS5637/ms5637.c **** static enum ms5637_status ms5637_read_eeprom(void);
+  64:Drivers/MS5637/ms5637.c **** static enum ms5637_status ms5637_conversion_and_read_adc( uint8_t, uint32_t *);
+  65:Drivers/MS5637/ms5637.c **** static bool ms5637_crc_check (uint16_t *n_prom, uint8_t crc);
+  66:Drivers/MS5637/ms5637.c **** 
+  67:Drivers/MS5637/ms5637.c **** enum ms5637_resolution_osr ms5637_resolution_osr;
+  68:Drivers/MS5637/ms5637.c **** static uint16_t eeprom_coeff[MS5637_COEFFICIENT_NUMBERS];
+  69:Drivers/MS5637/ms5637.c **** static uint32_t conversion_time[6] = {	MS5637_CONVERSION_TIME_OSR_256,
+  70:Drivers/MS5637/ms5637.c **** 										MS5637_CONVERSION_TIME_OSR_512,
+  71:Drivers/MS5637/ms5637.c **** 										MS5637_CONVERSION_TIME_OSR_1024,
+  72:Drivers/MS5637/ms5637.c **** 										MS5637_CONVERSION_TIME_OSR_2048,
+  73:Drivers/MS5637/ms5637.c **** 										MS5637_CONVERSION_TIME_OSR_4096,
+  74:Drivers/MS5637/ms5637.c **** 										MS5637_CONVERSION_TIME_OSR_8192};
+  75:Drivers/MS5637/ms5637.c **** 
+  76:Drivers/MS5637/ms5637.c **** // Default value to ensure coefficients are read before converting temperature
+  77:Drivers/MS5637/ms5637.c **** bool ms5637_coeff_read = false;
+  78:Drivers/MS5637/ms5637.c **** 
+  79:Drivers/MS5637/ms5637.c **** /**
+  80:Drivers/MS5637/ms5637.c ****  * \brief Configures the SERCOM I2C master to be used with the MS5637 device.
+  81:Drivers/MS5637/ms5637.c ****  */
+  82:Drivers/MS5637/ms5637.c **** void ms5637_init(void)
+  83:Drivers/MS5637/ms5637.c **** {
+  84:Drivers/MS5637/ms5637.c **** 	ms5637_resolution_osr = ms5637_resolution_osr_8192;
+  85:Drivers/MS5637/ms5637.c **** 	
+  86:Drivers/MS5637/ms5637.c ****     /* Initialize and enable device with config. */
+  87:Drivers/MS5637/ms5637.c **** 	//i2c_master_init();
+  88:Drivers/MS5637/ms5637.c **** }
+  89:Drivers/MS5637/ms5637.c **** 
+ARM GAS  /tmp/ccMf2Fv6.s 			page 3
+
+
+  90:Drivers/MS5637/ms5637.c **** /**
+  91:Drivers/MS5637/ms5637.c ****  * \brief Check whether MS5637 device is connected
+  92:Drivers/MS5637/ms5637.c ****  *
+  93:Drivers/MS5637/ms5637.c ****  * \return bool : status of MS5637
+  94:Drivers/MS5637/ms5637.c ****  *       - true : Device is present
+  95:Drivers/MS5637/ms5637.c ****  *       - false : Device is not acknowledging I2C address
+  96:Drivers/MS5637/ms5637.c ****   */
+  97:Drivers/MS5637/ms5637.c **** bool ms5637_is_connected(void)
+  98:Drivers/MS5637/ms5637.c **** {
+  99:Drivers/MS5637/ms5637.c **** 	HAL_StatusTypeDef i2c_stat;
+ 100:Drivers/MS5637/ms5637.c **** 	i2c_stat = HAL_I2C_Master_Transmit(&hi2c2, MS5637_ADDR, NULL, 0, 100);
+ 101:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 102:Drivers/MS5637/ms5637.c **** 		return false;
+ 103:Drivers/MS5637/ms5637.c **** 	
+ 104:Drivers/MS5637/ms5637.c **** 	return true;
+ 105:Drivers/MS5637/ms5637.c **** }
+ 106:Drivers/MS5637/ms5637.c **** 	
+ 107:Drivers/MS5637/ms5637.c **** /**
+ 108:Drivers/MS5637/ms5637.c ****  * \brief Reset the MS5637 device
+ 109:Drivers/MS5637/ms5637.c ****  *
+ 110:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 111:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 112:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 113:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 114:Drivers/MS5637/ms5637.c ****  */
+ 115:Drivers/MS5637/ms5637.c **** enum ms5637_status  ms5637_reset(void)
+ 116:Drivers/MS5637/ms5637.c **** {
+ 117:Drivers/MS5637/ms5637.c **** 	return ms5637_write_command(MS5637_RESET_COMMAND);
+ 118:Drivers/MS5637/ms5637.c **** }
+ 119:Drivers/MS5637/ms5637.c **** 
+ 120:Drivers/MS5637/ms5637.c **** /**
+ 121:Drivers/MS5637/ms5637.c ****  * \brief Set  ADC resolution.
+ 122:Drivers/MS5637/ms5637.c ****  *
+ 123:Drivers/MS5637/ms5637.c ****  * \param[in] ms5637_resolution_osr : Resolution requested
+ 124:Drivers/MS5637/ms5637.c ****  *
+ 125:Drivers/MS5637/ms5637.c ****  */
+ 126:Drivers/MS5637/ms5637.c **** void ms5637_set_resolution(enum ms5637_resolution_osr res)
+ 127:Drivers/MS5637/ms5637.c **** {
+ 128:Drivers/MS5637/ms5637.c **** 	ms5637_resolution_osr = res;
+ 129:Drivers/MS5637/ms5637.c **** 	return;
+ 130:Drivers/MS5637/ms5637.c **** }
+ 131:Drivers/MS5637/ms5637.c **** 
+ 132:Drivers/MS5637/ms5637.c **** /**
+ 133:Drivers/MS5637/ms5637.c ****  * \brief Writes the MS5637 8-bits command with the value passed
+ 134:Drivers/MS5637/ms5637.c ****  *
+ 135:Drivers/MS5637/ms5637.c ****  * \param[in] uint8_t : Command value to be written.
+ 136:Drivers/MS5637/ms5637.c ****  *
+ 137:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 138:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 139:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 140:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 141:Drivers/MS5637/ms5637.c ****  */
+ 142:Drivers/MS5637/ms5637.c **** enum ms5637_status ms5637_write_command( uint8_t cmd)
+ 143:Drivers/MS5637/ms5637.c **** {
+  27              		.loc 1 143 0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 8
+ARM GAS  /tmp/ccMf2Fv6.s 			page 4
+
+
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              	.LVL0:
+  32 0000 00B5     		push	{lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 4
+  35              		.cfi_offset 14, -4
+  36 0002 85B0     		sub	sp, sp, #20
+  37              	.LCFI1:
+  38              		.cfi_def_cfa_offset 24
+ 144:Drivers/MS5637/ms5637.c **** 	HAL_StatusTypeDef i2c_stat;
+ 145:Drivers/MS5637/ms5637.c **** 	uint8_t data[1];
+ 146:Drivers/MS5637/ms5637.c **** 		
+ 147:Drivers/MS5637/ms5637.c **** 	data[0] = cmd;
+  39              		.loc 1 147 0
+  40 0004 04AA     		add	r2, sp, #16
+  41 0006 02F8040D 		strb	r0, [r2, #-4]!
+ 148:Drivers/MS5637/ms5637.c **** 		
+ 149:Drivers/MS5637/ms5637.c **** 	/* Do the transfer */
+ 150:Drivers/MS5637/ms5637.c **** 	i2c_stat = HAL_I2C_Master_Transmit(&hi2c2, MS5637_ADDR, data, 1, 100);
+  42              		.loc 1 150 0
+  43 000a 6423     		movs	r3, #100
+  44 000c 0093     		str	r3, [sp]
+  45 000e 0123     		movs	r3, #1
+  46 0010 EC21     		movs	r1, #236
+  47 0012 0748     		ldr	r0, .L7
+  48              	.LVL1:
+  49 0014 FFF7FEFF 		bl	HAL_I2C_Master_Transmit
+  50              	.LVL2:
+ 151:Drivers/MS5637/ms5637.c **** 	if( i2c_stat == HAL_TIMEOUT )
+  51              		.loc 1 151 0
+  52 0018 0328     		cmp	r0, #3
+  53 001a 06D0     		beq	.L3
+ 152:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+ 153:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+  54              		.loc 1 153 0
+  55 001c 18B9     		cbnz	r0, .L6
+ 154:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+ 155:Drivers/MS5637/ms5637.c **** 	
+ 156:Drivers/MS5637/ms5637.c **** 	return ms5637_status_ok;
+  56              		.loc 1 156 0
+  57 001e 0020     		movs	r0, #0
+  58              	.LVL3:
+  59              	.L2:
+ 157:Drivers/MS5637/ms5637.c **** }
+  60              		.loc 1 157 0
+  61 0020 05B0     		add	sp, sp, #20
+  62              	.LCFI2:
+  63              		.cfi_remember_state
+  64              		.cfi_def_cfa_offset 4
+  65              		@ sp needed
+  66 0022 5DF804FB 		ldr	pc, [sp], #4
+  67              	.LVL4:
+  68              	.L6:
+  69              	.LCFI3:
+  70              		.cfi_restore_state
+ 154:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+  71              		.loc 1 154 0
+ARM GAS  /tmp/ccMf2Fv6.s 			page 5
+
+
+  72 0026 0220     		movs	r0, #2
+  73              	.LVL5:
+  74 0028 FAE7     		b	.L2
+  75              	.LVL6:
+  76              	.L3:
+ 152:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+  77              		.loc 1 152 0
+  78 002a 0120     		movs	r0, #1
+  79              	.LVL7:
+  80 002c F8E7     		b	.L2
+  81              	.L8:
+  82 002e 00BF     		.align	2
+  83              	.L7:
+  84 0030 00000000 		.word	hi2c2
+  85              		.cfi_endproc
+  86              	.LFE333:
+  88              		.section	.text.ms5637_read_eeprom_coeff,"ax",%progbits
+  89              		.align	1
+  90              		.syntax unified
+  91              		.thumb
+  92              		.thumb_func
+  93              		.fpu fpv4-sp-d16
+  95              	ms5637_read_eeprom_coeff:
+  96              	.LFB334:
+ 158:Drivers/MS5637/ms5637.c **** 
+ 159:Drivers/MS5637/ms5637.c **** /**
+ 160:Drivers/MS5637/ms5637.c ****  * \brief Reads the ms5637 EEPROM coefficient stored at address provided.
+ 161:Drivers/MS5637/ms5637.c ****  *
+ 162:Drivers/MS5637/ms5637.c ****  * \param[in] uint8_t : Address of coefficient in EEPROM
+ 163:Drivers/MS5637/ms5637.c ****  * \param[out] uint16_t* : Value read in EEPROM
+ 164:Drivers/MS5637/ms5637.c ****  *
+ 165:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 166:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 167:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 168:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 169:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_crc_error : CRC check error on the coefficients
+ 170:Drivers/MS5637/ms5637.c ****  */
+ 171:Drivers/MS5637/ms5637.c **** enum ms5637_status ms5637_read_eeprom_coeff(uint8_t command, uint16_t *coeff)
+ 172:Drivers/MS5637/ms5637.c **** {
+  97              		.loc 1 172 0
+  98              		.cfi_startproc
+  99              		@ args = 0, pretend = 0, frame = 8
+ 100              		@ frame_needed = 0, uses_anonymous_args = 0
+ 101              	.LVL8:
+ 102 0000 30B5     		push	{r4, r5, lr}
+ 103              	.LCFI4:
+ 104              		.cfi_def_cfa_offset 12
+ 105              		.cfi_offset 4, -12
+ 106              		.cfi_offset 5, -8
+ 107              		.cfi_offset 14, -4
+ 108 0002 85B0     		sub	sp, sp, #20
+ 109              	.LCFI5:
+ 110              		.cfi_def_cfa_offset 32
+ 111 0004 0D46     		mov	r5, r1
+ 173:Drivers/MS5637/ms5637.c **** 	enum ms5637_status status;
+ 174:Drivers/MS5637/ms5637.c **** 	HAL_StatusTypeDef i2c_stat;
+ 175:Drivers/MS5637/ms5637.c **** 	uint8_t buffer[2];
+ARM GAS  /tmp/ccMf2Fv6.s 			page 6
+
+
+ 176:Drivers/MS5637/ms5637.c **** 	
+ 177:Drivers/MS5637/ms5637.c **** 	buffer[0] = 0;
+ 112              		.loc 1 177 0
+ 113 0006 0023     		movs	r3, #0
+ 114 0008 8DF80C30 		strb	r3, [sp, #12]
+ 178:Drivers/MS5637/ms5637.c **** 	buffer[1] = 0;
+ 115              		.loc 1 178 0
+ 116 000c 8DF80D30 		strb	r3, [sp, #13]
+ 179:Drivers/MS5637/ms5637.c **** 
+ 180:Drivers/MS5637/ms5637.c **** 	// Send the conversion command
+ 181:Drivers/MS5637/ms5637.c **** 	status = ms5637_write_command(command);
+ 117              		.loc 1 181 0
+ 118 0010 FFF7FEFF 		bl	ms5637_write_command
+ 119              	.LVL9:
+ 182:Drivers/MS5637/ms5637.c **** 	if(status != ms5637_status_ok)
+ 120              		.loc 1 182 0
+ 121 0014 0446     		mov	r4, r0
+ 122 0016 10B1     		cbz	r0, .L14
+ 123              	.LVL10:
+ 124              	.L10:
+ 183:Drivers/MS5637/ms5637.c **** 		return status;
+ 184:Drivers/MS5637/ms5637.c **** 	
+ 185:Drivers/MS5637/ms5637.c **** 	i2c_stat = HAL_I2C_Master_Receive(&hi2c2, MS5637_ADDR, buffer, 2, 100);
+ 186:Drivers/MS5637/ms5637.c **** 	if( i2c_stat == HAL_TIMEOUT )
+ 187:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+ 188:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 189:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+ 190:Drivers/MS5637/ms5637.c **** 		
+ 191:Drivers/MS5637/ms5637.c **** 	*coeff = (buffer[0] << 8) | buffer[1];
+ 192:Drivers/MS5637/ms5637.c ****     
+ 193:Drivers/MS5637/ms5637.c ****     if (*coeff == 0)
+ 194:Drivers/MS5637/ms5637.c ****         return ms5637_status_i2c_transfer_error;
+ 195:Drivers/MS5637/ms5637.c **** 	
+ 196:Drivers/MS5637/ms5637.c **** 	return ms5637_status_ok;	
+ 197:Drivers/MS5637/ms5637.c **** }
+ 125              		.loc 1 197 0
+ 126 0018 2046     		mov	r0, r4
+ 127 001a 05B0     		add	sp, sp, #20
+ 128              	.LCFI6:
+ 129              		.cfi_remember_state
+ 130              		.cfi_def_cfa_offset 12
+ 131              		@ sp needed
+ 132 001c 30BD     		pop	{r4, r5, pc}
+ 133              	.LVL11:
+ 134              	.L14:
+ 135              	.LCFI7:
+ 136              		.cfi_restore_state
+ 185:Drivers/MS5637/ms5637.c **** 	if( i2c_stat == HAL_TIMEOUT )
+ 137              		.loc 1 185 0
+ 138 001e 6423     		movs	r3, #100
+ 139 0020 0093     		str	r3, [sp]
+ 140 0022 0223     		movs	r3, #2
+ 141 0024 03AA     		add	r2, sp, #12
+ 142 0026 EC21     		movs	r1, #236
+ 143 0028 0A48     		ldr	r0, .L15
+ 144              	.LVL12:
+ 145 002a FFF7FEFF 		bl	HAL_I2C_Master_Receive
+ARM GAS  /tmp/ccMf2Fv6.s 			page 7
+
+
+ 146              	.LVL13:
+ 186:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+ 147              		.loc 1 186 0
+ 148 002e 0328     		cmp	r0, #3
+ 149 0030 0BD0     		beq	.L11
+ 188:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+ 150              		.loc 1 188 0
+ 151 0032 60B9     		cbnz	r0, .L12
+ 191:Drivers/MS5637/ms5637.c ****     
+ 152              		.loc 1 191 0
+ 153 0034 9DF80C20 		ldrb	r2, [sp, #12]	@ zero_extendqisi2
+ 154 0038 9DF80D30 		ldrb	r3, [sp, #13]	@ zero_extendqisi2
+ 155 003c 43EA0223 		orr	r3, r3, r2, lsl #8
+ 156 0040 2B80     		strh	r3, [r5]	@ movhi
+ 193:Drivers/MS5637/ms5637.c ****         return ms5637_status_i2c_transfer_error;
+ 157              		.loc 1 193 0
+ 158 0042 002B     		cmp	r3, #0
+ 159 0044 E8D1     		bne	.L10
+ 194:Drivers/MS5637/ms5637.c **** 	
+ 160              		.loc 1 194 0
+ 161 0046 0224     		movs	r4, #2
+ 162 0048 E6E7     		b	.L10
+ 163              	.L11:
+ 187:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 164              		.loc 1 187 0
+ 165 004a 0124     		movs	r4, #1
+ 166 004c E4E7     		b	.L10
+ 167              	.L12:
+ 189:Drivers/MS5637/ms5637.c **** 		
+ 168              		.loc 1 189 0
+ 169 004e 0224     		movs	r4, #2
+ 170 0050 E2E7     		b	.L10
+ 171              	.L16:
+ 172 0052 00BF     		.align	2
+ 173              	.L15:
+ 174 0054 00000000 		.word	hi2c2
+ 175              		.cfi_endproc
+ 176              	.LFE334:
+ 178              		.section	.text.ms5637_read_eeprom,"ax",%progbits
+ 179              		.align	1
+ 180              		.syntax unified
+ 181              		.thumb
+ 182              		.thumb_func
+ 183              		.fpu fpv4-sp-d16
+ 185              	ms5637_read_eeprom:
+ 186              	.LFB335:
+ 198:Drivers/MS5637/ms5637.c **** 
+ 199:Drivers/MS5637/ms5637.c **** /**
+ 200:Drivers/MS5637/ms5637.c ****  * \brief Reads the ms5637 EEPROM coefficients to store them for computation.
+ 201:Drivers/MS5637/ms5637.c ****  *
+ 202:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 203:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 204:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 205:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 206:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_crc_error : CRC check error on the coefficients
+ 207:Drivers/MS5637/ms5637.c ****  */
+ 208:Drivers/MS5637/ms5637.c **** enum ms5637_status ms5637_read_eeprom(void)
+ARM GAS  /tmp/ccMf2Fv6.s 			page 8
+
+
+ 209:Drivers/MS5637/ms5637.c **** {
+ 187              		.loc 1 209 0
+ 188              		.cfi_startproc
+ 189              		@ args = 0, pretend = 0, frame = 0
+ 190              		@ frame_needed = 0, uses_anonymous_args = 0
+ 191 0000 10B5     		push	{r4, lr}
+ 192              	.LCFI8:
+ 193              		.cfi_def_cfa_offset 8
+ 194              		.cfi_offset 4, -8
+ 195              		.cfi_offset 14, -4
+ 196              	.LVL14:
+ 210:Drivers/MS5637/ms5637.c **** 	enum ms5637_status status;
+ 211:Drivers/MS5637/ms5637.c **** 	uint8_t i;
+ 212:Drivers/MS5637/ms5637.c **** 	
+ 213:Drivers/MS5637/ms5637.c **** 	for( i=0 ; i< MS5637_COEFFICIENT_NUMBERS ; i++)
+ 197              		.loc 1 213 0
+ 198 0002 0024     		movs	r4, #0
+ 199              	.LVL15:
+ 200              	.L18:
+ 201              		.loc 1 213 0 is_stmt 0 discriminator 1
+ 202 0004 062C     		cmp	r4, #6
+ 203 0006 0ED8     		bhi	.L22
+ 214:Drivers/MS5637/ms5637.c **** 	{
+ 215:Drivers/MS5637/ms5637.c **** 		status = ms5637_read_eeprom_coeff( MS5637_PROM_ADDRESS_READ_ADDRESS_0 + i*2, eeprom_coeff+i);
+ 204              		.loc 1 215 0 is_stmt 1
+ 205 0008 04F15000 		add	r0, r4, #80
+ 206 000c 4000     		lsls	r0, r0, #1
+ 207 000e 0949     		ldr	r1, .L23
+ 208 0010 01EB4401 		add	r1, r1, r4, lsl #1
+ 209 0014 00F0FE00 		and	r0, r0, #254
+ 210 0018 FFF7FEFF 		bl	ms5637_read_eeprom_coeff
+ 211              	.LVL16:
+ 216:Drivers/MS5637/ms5637.c **** 		if(status != ms5637_status_ok)
+ 212              		.loc 1 216 0
+ 213 001c 0346     		mov	r3, r0
+ 214 001e 30B9     		cbnz	r0, .L19
+ 213:Drivers/MS5637/ms5637.c **** 	{
+ 215              		.loc 1 213 0 discriminator 2
+ 216 0020 0134     		adds	r4, r4, #1
+ 217              	.LVL17:
+ 218 0022 E4B2     		uxtb	r4, r4
+ 219              	.LVL18:
+ 220 0024 EEE7     		b	.L18
+ 221              	.LVL19:
+ 222              	.L22:
+ 217:Drivers/MS5637/ms5637.c **** 			return status;
+ 218:Drivers/MS5637/ms5637.c **** 	}
+ 219:Drivers/MS5637/ms5637.c ****     
+ 220:Drivers/MS5637/ms5637.c **** 	//myprintf("Read All Coeffcients\r\n");
+ 221:Drivers/MS5637/ms5637.c **** 
+ 222:Drivers/MS5637/ms5637.c **** 	//if( !ms5637_crc_check( eeprom_coeff, ( eeprom_coeff[MS5637_CRC_INDEX] & 0xF000 ) >> 12) )
+ 223:Drivers/MS5637/ms5637.c **** 	//	return ms5637_status_crc_error;
+ 224:Drivers/MS5637/ms5637.c **** 	
+ 225:Drivers/MS5637/ms5637.c **** 	//myprintf("CRC is Correct\r\n");
+ 226:Drivers/MS5637/ms5637.c **** 	
+ 227:Drivers/MS5637/ms5637.c **** 	ms5637_coeff_read = true;
+ 223              		.loc 1 227 0
+ARM GAS  /tmp/ccMf2Fv6.s 			page 9
+
+
+ 224 0026 044B     		ldr	r3, .L23+4
+ 225 0028 0122     		movs	r2, #1
+ 226 002a 1A70     		strb	r2, [r3]
+ 228:Drivers/MS5637/ms5637.c **** 	
+ 229:Drivers/MS5637/ms5637.c **** 	return ms5637_status_ok;
+ 227              		.loc 1 229 0
+ 228 002c 0023     		movs	r3, #0
+ 229              	.L19:
+ 230:Drivers/MS5637/ms5637.c **** }
+ 230              		.loc 1 230 0
+ 231 002e 1846     		mov	r0, r3
+ 232 0030 10BD     		pop	{r4, pc}
+ 233              	.LVL20:
+ 234              	.L24:
+ 235 0032 00BF     		.align	2
+ 236              	.L23:
+ 237 0034 00000000 		.word	.LANCHOR0
+ 238 0038 00000000 		.word	.LANCHOR1
+ 239              		.cfi_endproc
+ 240              	.LFE335:
+ 242              		.section	.text.ms5637_conversion_and_read_adc,"ax",%progbits
+ 243              		.align	1
+ 244              		.syntax unified
+ 245              		.thumb
+ 246              		.thumb_func
+ 247              		.fpu fpv4-sp-d16
+ 249              	ms5637_conversion_and_read_adc:
+ 250              	.LFB336:
+ 231:Drivers/MS5637/ms5637.c **** 
+ 232:Drivers/MS5637/ms5637.c **** /**
+ 233:Drivers/MS5637/ms5637.c ****  * \brief Triggers conversion and read ADC value
+ 234:Drivers/MS5637/ms5637.c ****  *
+ 235:Drivers/MS5637/ms5637.c ****  * \param[in] uint8_t : Command used for conversion (will determine Temperature vs Pressure and osr
+ 236:Drivers/MS5637/ms5637.c ****  * \param[out] uint32_t* : ADC value.
+ 237:Drivers/MS5637/ms5637.c ****  *
+ 238:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 239:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 240:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 241:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 242:Drivers/MS5637/ms5637.c ****  */
+ 243:Drivers/MS5637/ms5637.c **** static enum ms5637_status ms5637_conversion_and_read_adc(uint8_t cmd, uint32_t *adc)
+ 244:Drivers/MS5637/ms5637.c **** {
+ 251              		.loc 1 244 0
+ 252              		.cfi_startproc
+ 253              		@ args = 0, pretend = 0, frame = 8
+ 254              		@ frame_needed = 0, uses_anonymous_args = 0
+ 255              	.LVL21:
+ 256 0000 70B5     		push	{r4, r5, r6, lr}
+ 257              	.LCFI9:
+ 258              		.cfi_def_cfa_offset 16
+ 259              		.cfi_offset 4, -16
+ 260              		.cfi_offset 5, -12
+ 261              		.cfi_offset 6, -8
+ 262              		.cfi_offset 14, -4
+ 263 0002 84B0     		sub	sp, sp, #16
+ 264              	.LCFI10:
+ 265              		.cfi_def_cfa_offset 32
+ARM GAS  /tmp/ccMf2Fv6.s 			page 10
+
+
+ 266 0004 0446     		mov	r4, r0
+ 267 0006 0E46     		mov	r6, r1
+ 245:Drivers/MS5637/ms5637.c **** 	enum ms5637_status status;
+ 246:Drivers/MS5637/ms5637.c **** 	HAL_StatusTypeDef i2c_stat;
+ 247:Drivers/MS5637/ms5637.c **** 	uint8_t buffer[3];
+ 248:Drivers/MS5637/ms5637.c **** 	
+ 249:Drivers/MS5637/ms5637.c **** 	buffer[0] = 0;
+ 268              		.loc 1 249 0
+ 269 0008 0023     		movs	r3, #0
+ 270 000a 8DF80C30 		strb	r3, [sp, #12]
+ 250:Drivers/MS5637/ms5637.c **** 	buffer[1] = 0;
+ 271              		.loc 1 250 0
+ 272 000e 8DF80D30 		strb	r3, [sp, #13]
+ 251:Drivers/MS5637/ms5637.c **** 	buffer[2] = 0;
+ 273              		.loc 1 251 0
+ 274 0012 8DF80E30 		strb	r3, [sp, #14]
+ 252:Drivers/MS5637/ms5637.c **** 
+ 253:Drivers/MS5637/ms5637.c **** 	status = ms5637_write_command(cmd);
+ 275              		.loc 1 253 0
+ 276 0016 FFF7FEFF 		bl	ms5637_write_command
+ 277              	.LVL22:
+ 278 001a 0546     		mov	r5, r0
+ 279              	.LVL23:
+ 254:Drivers/MS5637/ms5637.c **** 	// delay conversion depending on resolution TODO: FreeRTOS delay
+ 255:Drivers/MS5637/ms5637.c **** 	HAL_Delay( conversion_time[ (cmd & MS5637_CONVERSION_OSR_MASK)/2 ]/1000 );
+ 280              		.loc 1 255 0
+ 281 001c C4F34204 		ubfx	r4, r4, #1, #3
+ 282 0020 164B     		ldr	r3, .L31
+ 283 0022 53F82400 		ldr	r0, [r3, r4, lsl #2]
+ 284 0026 164B     		ldr	r3, .L31+4
+ 285 0028 A3FB0030 		umull	r3, r0, r3, r0
+ 286 002c 8009     		lsrs	r0, r0, #6
+ 287 002e FFF7FEFF 		bl	HAL_Delay
+ 288              	.LVL24:
+ 256:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 289              		.loc 1 256 0
+ 290 0032 15B1     		cbz	r5, .L30
+ 291              	.LVL25:
+ 292              	.L26:
+ 257:Drivers/MS5637/ms5637.c **** 		return status;
+ 258:Drivers/MS5637/ms5637.c **** 
+ 259:Drivers/MS5637/ms5637.c **** 	// Send the read command
+ 260:Drivers/MS5637/ms5637.c **** 	status = ms5637_write_command(MS5637_READ_ADC);
+ 261:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 262:Drivers/MS5637/ms5637.c **** 		return status;
+ 263:Drivers/MS5637/ms5637.c **** 	
+ 264:Drivers/MS5637/ms5637.c **** 	i2c_stat = HAL_I2C_Master_Receive(&hi2c2, MS5637_ADDR, buffer, 3, 100);
+ 265:Drivers/MS5637/ms5637.c **** 	if( i2c_stat == HAL_TIMEOUT )
+ 266:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+ 267:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 268:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+ 269:Drivers/MS5637/ms5637.c **** 
+ 270:Drivers/MS5637/ms5637.c **** 	*adc = ((uint32_t)buffer[0] << 16) | ((uint32_t)buffer[1] << 8) | buffer[2];
+ 271:Drivers/MS5637/ms5637.c **** 	
+ 272:Drivers/MS5637/ms5637.c **** 	return status;
+ 273:Drivers/MS5637/ms5637.c **** }
+ 293              		.loc 1 273 0
+ARM GAS  /tmp/ccMf2Fv6.s 			page 11
+
+
+ 294 0034 2846     		mov	r0, r5
+ 295 0036 04B0     		add	sp, sp, #16
+ 296              	.LCFI11:
+ 297              		.cfi_remember_state
+ 298              		.cfi_def_cfa_offset 16
+ 299              		@ sp needed
+ 300 0038 70BD     		pop	{r4, r5, r6, pc}
+ 301              	.LVL26:
+ 302              	.L30:
+ 303              	.LCFI12:
+ 304              		.cfi_restore_state
+ 260:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 305              		.loc 1 260 0
+ 306 003a 0020     		movs	r0, #0
+ 307 003c FFF7FEFF 		bl	ms5637_write_command
+ 308              	.LVL27:
+ 261:Drivers/MS5637/ms5637.c **** 		return status;
+ 309              		.loc 1 261 0
+ 310 0040 0546     		mov	r5, r0
+ 311 0042 0028     		cmp	r0, #0
+ 312 0044 F6D1     		bne	.L26
+ 264:Drivers/MS5637/ms5637.c **** 	if( i2c_stat == HAL_TIMEOUT )
+ 313              		.loc 1 264 0
+ 314 0046 6423     		movs	r3, #100
+ 315 0048 0093     		str	r3, [sp]
+ 316 004a 0323     		movs	r3, #3
+ 317 004c 03AA     		add	r2, sp, #12
+ 318 004e EC21     		movs	r1, #236
+ 319 0050 0C48     		ldr	r0, .L31+8
+ 320              	.LVL28:
+ 321 0052 FFF7FEFF 		bl	HAL_I2C_Master_Receive
+ 322              	.LVL29:
+ 265:Drivers/MS5637/ms5637.c **** 		return ms5637_status_no_i2c_acknowledge;
+ 323              		.loc 1 265 0
+ 324 0056 0328     		cmp	r0, #3
+ 325 0058 0CD0     		beq	.L27
+ 267:Drivers/MS5637/ms5637.c **** 		return ms5637_status_i2c_transfer_error;
+ 326              		.loc 1 267 0
+ 327 005a 68B9     		cbnz	r0, .L28
+ 270:Drivers/MS5637/ms5637.c **** 	
+ 328              		.loc 1 270 0
+ 329 005c 9DF80C20 		ldrb	r2, [sp, #12]	@ zero_extendqisi2
+ 330 0060 9DF80D30 		ldrb	r3, [sp, #13]	@ zero_extendqisi2
+ 331 0064 1B02     		lsls	r3, r3, #8
+ 332 0066 43EA0243 		orr	r3, r3, r2, lsl #16
+ 333 006a 9DF80E20 		ldrb	r2, [sp, #14]	@ zero_extendqisi2
+ 334 006e 1343     		orrs	r3, r3, r2
+ 335 0070 3360     		str	r3, [r6]
+ 272:Drivers/MS5637/ms5637.c **** }
+ 336              		.loc 1 272 0
+ 337 0072 DFE7     		b	.L26
+ 338              	.L27:
+ 266:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 339              		.loc 1 266 0
+ 340 0074 0125     		movs	r5, #1
+ 341 0076 DDE7     		b	.L26
+ 342              	.L28:
+ARM GAS  /tmp/ccMf2Fv6.s 			page 12
+
+
+ 268:Drivers/MS5637/ms5637.c **** 
+ 343              		.loc 1 268 0
+ 344 0078 0225     		movs	r5, #2
+ 345 007a DBE7     		b	.L26
+ 346              	.L32:
+ 347              		.align	2
+ 348              	.L31:
+ 349 007c 00000000 		.word	.LANCHOR2
+ 350 0080 D34D6210 		.word	274877907
+ 351 0084 00000000 		.word	hi2c2
+ 352              		.cfi_endproc
+ 353              	.LFE336:
+ 355              		.section	.text.ms5637_init,"ax",%progbits
+ 356              		.align	1
+ 357              		.global	ms5637_init
+ 358              		.syntax unified
+ 359              		.thumb
+ 360              		.thumb_func
+ 361              		.fpu fpv4-sp-d16
+ 363              	ms5637_init:
+ 364              	.LFB329:
+  83:Drivers/MS5637/ms5637.c **** 	ms5637_resolution_osr = ms5637_resolution_osr_8192;
+ 365              		.loc 1 83 0
+ 366              		.cfi_startproc
+ 367              		@ args = 0, pretend = 0, frame = 0
+ 368              		@ frame_needed = 0, uses_anonymous_args = 0
+ 369              		@ link register save eliminated.
+  84:Drivers/MS5637/ms5637.c **** 	
+ 370              		.loc 1 84 0
+ 371 0000 014B     		ldr	r3, .L34
+ 372 0002 0522     		movs	r2, #5
+ 373 0004 1A70     		strb	r2, [r3]
+  88:Drivers/MS5637/ms5637.c **** 
+ 374              		.loc 1 88 0
+ 375 0006 7047     		bx	lr
+ 376              	.L35:
+ 377              		.align	2
+ 378              	.L34:
+ 379 0008 00000000 		.word	ms5637_resolution_osr
+ 380              		.cfi_endproc
+ 381              	.LFE329:
+ 383              		.section	.text.ms5637_is_connected,"ax",%progbits
+ 384              		.align	1
+ 385              		.global	ms5637_is_connected
+ 386              		.syntax unified
+ 387              		.thumb
+ 388              		.thumb_func
+ 389              		.fpu fpv4-sp-d16
+ 391              	ms5637_is_connected:
+ 392              	.LFB330:
+  98:Drivers/MS5637/ms5637.c **** 	HAL_StatusTypeDef i2c_stat;
+ 393              		.loc 1 98 0
+ 394              		.cfi_startproc
+ 395              		@ args = 0, pretend = 0, frame = 0
+ 396              		@ frame_needed = 0, uses_anonymous_args = 0
+ 397 0000 00B5     		push	{lr}
+ 398              	.LCFI13:
+ARM GAS  /tmp/ccMf2Fv6.s 			page 13
+
+
+ 399              		.cfi_def_cfa_offset 4
+ 400              		.cfi_offset 14, -4
+ 401 0002 83B0     		sub	sp, sp, #12
+ 402              	.LCFI14:
+ 403              		.cfi_def_cfa_offset 16
+ 100:Drivers/MS5637/ms5637.c **** 	if( i2c_stat != HAL_OK)
+ 404              		.loc 1 100 0
+ 405 0004 6423     		movs	r3, #100
+ 406 0006 0093     		str	r3, [sp]
+ 407 0008 0023     		movs	r3, #0
+ 408 000a 1A46     		mov	r2, r3
+ 409 000c EC21     		movs	r1, #236
+ 410 000e 0548     		ldr	r0, .L41
+ 411 0010 FFF7FEFF 		bl	HAL_I2C_Master_Transmit
+ 412              	.LVL30:
+ 101:Drivers/MS5637/ms5637.c **** 		return false;
+ 413              		.loc 1 101 0
+ 414 0014 18B9     		cbnz	r0, .L40
+ 104:Drivers/MS5637/ms5637.c **** }
+ 415              		.loc 1 104 0
+ 416 0016 0120     		movs	r0, #1
+ 417              	.LVL31:
+ 418              	.L37:
+ 105:Drivers/MS5637/ms5637.c **** 	
+ 419              		.loc 1 105 0
+ 420 0018 03B0     		add	sp, sp, #12
+ 421              	.LCFI15:
+ 422              		.cfi_remember_state
+ 423              		.cfi_def_cfa_offset 4
+ 424              		@ sp needed
+ 425 001a 5DF804FB 		ldr	pc, [sp], #4
+ 426              	.LVL32:
+ 427              	.L40:
+ 428              	.LCFI16:
+ 429              		.cfi_restore_state
+ 102:Drivers/MS5637/ms5637.c **** 	
+ 430              		.loc 1 102 0
+ 431 001e 0020     		movs	r0, #0
+ 432              	.LVL33:
+ 433 0020 FAE7     		b	.L37
+ 434              	.L42:
+ 435 0022 00BF     		.align	2
+ 436              	.L41:
+ 437 0024 00000000 		.word	hi2c2
+ 438              		.cfi_endproc
+ 439              	.LFE330:
+ 441              		.section	.text.ms5637_reset,"ax",%progbits
+ 442              		.align	1
+ 443              		.global	ms5637_reset
+ 444              		.syntax unified
+ 445              		.thumb
+ 446              		.thumb_func
+ 447              		.fpu fpv4-sp-d16
+ 449              	ms5637_reset:
+ 450              	.LFB331:
+ 116:Drivers/MS5637/ms5637.c **** 	return ms5637_write_command(MS5637_RESET_COMMAND);
+ 451              		.loc 1 116 0
+ARM GAS  /tmp/ccMf2Fv6.s 			page 14
+
+
+ 452              		.cfi_startproc
+ 453              		@ args = 0, pretend = 0, frame = 0
+ 454              		@ frame_needed = 0, uses_anonymous_args = 0
+ 455 0000 08B5     		push	{r3, lr}
+ 456              	.LCFI17:
+ 457              		.cfi_def_cfa_offset 8
+ 458              		.cfi_offset 3, -8
+ 459              		.cfi_offset 14, -4
+ 117:Drivers/MS5637/ms5637.c **** }
+ 460              		.loc 1 117 0
+ 461 0002 1E20     		movs	r0, #30
+ 462 0004 FFF7FEFF 		bl	ms5637_write_command
+ 463              	.LVL34:
+ 118:Drivers/MS5637/ms5637.c **** 
+ 464              		.loc 1 118 0
+ 465 0008 08BD     		pop	{r3, pc}
+ 466              		.cfi_endproc
+ 467              	.LFE331:
+ 469              		.section	.text.ms5637_set_resolution,"ax",%progbits
+ 470              		.align	1
+ 471              		.global	ms5637_set_resolution
+ 472              		.syntax unified
+ 473              		.thumb
+ 474              		.thumb_func
+ 475              		.fpu fpv4-sp-d16
+ 477              	ms5637_set_resolution:
+ 478              	.LFB332:
+ 127:Drivers/MS5637/ms5637.c **** 	ms5637_resolution_osr = res;
+ 479              		.loc 1 127 0
+ 480              		.cfi_startproc
+ 481              		@ args = 0, pretend = 0, frame = 0
+ 482              		@ frame_needed = 0, uses_anonymous_args = 0
+ 483              		@ link register save eliminated.
+ 484              	.LVL35:
+ 128:Drivers/MS5637/ms5637.c **** 	return;
+ 485              		.loc 1 128 0
+ 486 0000 014B     		ldr	r3, .L46
+ 487 0002 1870     		strb	r0, [r3]
+ 130:Drivers/MS5637/ms5637.c **** 
+ 488              		.loc 1 130 0
+ 489 0004 7047     		bx	lr
+ 490              	.L47:
+ 491 0006 00BF     		.align	2
+ 492              	.L46:
+ 493 0008 00000000 		.word	ms5637_resolution_osr
+ 494              		.cfi_endproc
+ 495              	.LFE332:
+ 497              		.global	__aeabi_l2f
+ 498              		.section	.text.ms5637_read_temperature_and_pressure,"ax",%progbits
+ 499              		.align	1
+ 500              		.global	ms5637_read_temperature_and_pressure
+ 501              		.syntax unified
+ 502              		.thumb
+ 503              		.thumb_func
+ 504              		.fpu fpv4-sp-d16
+ 506              	ms5637_read_temperature_and_pressure:
+ 507              	.LFB337:
+ARM GAS  /tmp/ccMf2Fv6.s 			page 15
+
+
+ 274:Drivers/MS5637/ms5637.c **** 
+ 275:Drivers/MS5637/ms5637.c **** /**
+ 276:Drivers/MS5637/ms5637.c ****  * \brief Reads the temperature and pressure ADC value and compute the compensated values.
+ 277:Drivers/MS5637/ms5637.c ****  *
+ 278:Drivers/MS5637/ms5637.c ****  * \param[out] float* : Celsius Degree temperature value
+ 279:Drivers/MS5637/ms5637.c ****  * \param[out] float* : mbar pressure value
+ 280:Drivers/MS5637/ms5637.c ****  *
+ 281:Drivers/MS5637/ms5637.c ****  * \return ms5637_status : status of MS5637
+ 282:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_ok : I2C transfer completed successfully
+ 283:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_i2c_transfer_error : Problem with i2c transfer
+ 284:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_no_i2c_acknowledge : I2C did not acknowledge
+ 285:Drivers/MS5637/ms5637.c ****  *       - ms5637_status_crc_error : CRC check error on the coefficients
+ 286:Drivers/MS5637/ms5637.c ****  */
+ 287:Drivers/MS5637/ms5637.c **** enum ms5637_status ms5637_read_temperature_and_pressure( float *temperature, float *pressure)
+ 288:Drivers/MS5637/ms5637.c **** {
+ 508              		.loc 1 288 0
+ 509              		.cfi_startproc
+ 510              		@ args = 0, pretend = 0, frame = 56
+ 511              		@ frame_needed = 0, uses_anonymous_args = 0
+ 512              	.LVL36:
+ 513 0000 2DE9F04F 		push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
+ 514              	.LCFI18:
+ 515              		.cfi_def_cfa_offset 36
+ 516              		.cfi_offset 4, -36
+ 517              		.cfi_offset 5, -32
+ 518              		.cfi_offset 6, -28
+ 519              		.cfi_offset 7, -24
+ 520              		.cfi_offset 8, -20
+ 521              		.cfi_offset 9, -16
+ 522              		.cfi_offset 10, -12
+ 523              		.cfi_offset 11, -8
+ 524              		.cfi_offset 14, -4
+ 525 0004 2DED028B 		vpush.64	{d8}
+ 526              	.LCFI19:
+ 527              		.cfi_def_cfa_offset 44
+ 528              		.cfi_offset 80, -44
+ 529              		.cfi_offset 81, -40
+ 530 0008 8FB0     		sub	sp, sp, #60
+ 531              	.LCFI20:
+ 532              		.cfi_def_cfa_offset 104
+ 533 000a 0646     		mov	r6, r0
+ 534 000c 0D46     		mov	r5, r1
+ 535              	.LVL37:
+ 289:Drivers/MS5637/ms5637.c **** 	enum ms5637_status status = ms5637_status_ok;
+ 290:Drivers/MS5637/ms5637.c **** 	uint32_t adc_temperature, adc_pressure;
+ 291:Drivers/MS5637/ms5637.c **** 	int32_t dT, TEMP;
+ 292:Drivers/MS5637/ms5637.c **** 	int64_t OFF, SENS, P, T2, OFF2, SENS2;
+ 293:Drivers/MS5637/ms5637.c **** 	uint8_t cmd;
+ 294:Drivers/MS5637/ms5637.c **** 	
+ 295:Drivers/MS5637/ms5637.c **** 	// If first time adc is requested, get EEPROM coefficients
+ 296:Drivers/MS5637/ms5637.c **** 	if( ms5637_coeff_read == false )
+ 536              		.loc 1 296 0
+ 537 000e C44B     		ldr	r3, .L61
+ 538 0010 1B78     		ldrb	r3, [r3]	@ zero_extendqisi2
+ 539 0012 1BB9     		cbnz	r3, .L49
+ 297:Drivers/MS5637/ms5637.c **** 		status = ms5637_read_eeprom();
+ 540              		.loc 1 297 0
+ARM GAS  /tmp/ccMf2Fv6.s 			page 16
+
+
+ 541 0014 FFF7FEFF 		bl	ms5637_read_eeprom
+ 542              	.LVL38:
+ 298:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 543              		.loc 1 298 0
+ 544 0018 0446     		mov	r4, r0
+ 545 001a 50B9     		cbnz	r0, .L50
+ 546              	.LVL39:
+ 547              	.L49:
+ 299:Drivers/MS5637/ms5637.c **** 		return status;
+ 300:Drivers/MS5637/ms5637.c **** 	
+ 301:Drivers/MS5637/ms5637.c **** 	//myprintf("Got Coeffcients\r\n");
+ 302:Drivers/MS5637/ms5637.c **** 
+ 303:Drivers/MS5637/ms5637.c **** 	// First read temperature
+ 304:Drivers/MS5637/ms5637.c **** 	cmd = ms5637_resolution_osr*2;
+ 548              		.loc 1 304 0
+ 549 001c C14B     		ldr	r3, .L61+4
+ 550 001e 1878     		ldrb	r0, [r3]	@ zero_extendqisi2
+ 551 0020 4000     		lsls	r0, r0, #1
+ 552 0022 C0B2     		uxtb	r0, r0
+ 553              	.LVL40:
+ 305:Drivers/MS5637/ms5637.c **** 	cmd |= MS5637_START_TEMPERATURE_ADC_CONVERSION;
+ 306:Drivers/MS5637/ms5637.c **** 	status = ms5637_conversion_and_read_adc( cmd, &adc_temperature);
+ 554              		.loc 1 306 0
+ 555 0024 0DA9     		add	r1, sp, #52
+ 556 0026 40F05000 		orr	r0, r0, #80
+ 557              	.LVL41:
+ 558 002a FFF7FEFF 		bl	ms5637_conversion_and_read_adc
+ 559              	.LVL42:
+ 307:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 560              		.loc 1 307 0
+ 561 002e 0446     		mov	r4, r0
+ 562 0030 28B1     		cbz	r0, .L58
+ 563              	.LVL43:
+ 564              	.L50:
+ 308:Drivers/MS5637/ms5637.c **** 		return status;
+ 309:Drivers/MS5637/ms5637.c **** 
+ 310:Drivers/MS5637/ms5637.c **** 	//myprintf("Got Temperature\r\n");
+ 311:Drivers/MS5637/ms5637.c **** 
+ 312:Drivers/MS5637/ms5637.c **** 	// Now read pressure
+ 313:Drivers/MS5637/ms5637.c **** 	cmd = ms5637_resolution_osr*2;
+ 314:Drivers/MS5637/ms5637.c **** 	cmd |= MS5637_START_PRESSURE_ADC_CONVERSION;
+ 315:Drivers/MS5637/ms5637.c **** 	status = ms5637_conversion_and_read_adc( cmd, &adc_pressure);
+ 316:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 317:Drivers/MS5637/ms5637.c **** 		return status;
+ 318:Drivers/MS5637/ms5637.c ****     
+ 319:Drivers/MS5637/ms5637.c **** 	//myprintf("Got Pressure\r\n");
+ 320:Drivers/MS5637/ms5637.c **** 
+ 321:Drivers/MS5637/ms5637.c ****     if (adc_temperature == 0 || adc_pressure == 0)
+ 322:Drivers/MS5637/ms5637.c ****         return ms5637_status_i2c_transfer_error;
+ 323:Drivers/MS5637/ms5637.c **** 
+ 324:Drivers/MS5637/ms5637.c **** 	// Difference between actual and reference temperature = D2 - Tref
+ 325:Drivers/MS5637/ms5637.c **** 	dT = (int32_t)adc_temperature - ((int32_t)eeprom_coeff[MS5637_REFERENCE_TEMPERATURE_INDEX] << 8 );
+ 326:Drivers/MS5637/ms5637.c **** 	
+ 327:Drivers/MS5637/ms5637.c **** 	// Actual temperature = 2000 + dT * TEMPSENS
+ 328:Drivers/MS5637/ms5637.c **** 	TEMP = 2000 + ((int64_t)dT * (int64_t)eeprom_coeff[MS5637_TEMP_COEFF_OF_TEMPERATURE_INDEX] >> 23) 
+ 329:Drivers/MS5637/ms5637.c **** 	
+ 330:Drivers/MS5637/ms5637.c **** 	// Second order temperature compensation
+ARM GAS  /tmp/ccMf2Fv6.s 			page 17
+
+
+ 331:Drivers/MS5637/ms5637.c **** 	if( TEMP < 2000 )
+ 332:Drivers/MS5637/ms5637.c **** 	{
+ 333:Drivers/MS5637/ms5637.c **** 		T2 = ( 3 * ( (int64_t)dT  * (int64_t)dT  ) ) >> 33;
+ 334:Drivers/MS5637/ms5637.c **** 		OFF2 = 61 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) / 16 ;
+ 335:Drivers/MS5637/ms5637.c **** 		SENS2 = 29 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) / 16 ;
+ 336:Drivers/MS5637/ms5637.c **** 		
+ 337:Drivers/MS5637/ms5637.c **** 		if( TEMP < -1500 )
+ 338:Drivers/MS5637/ms5637.c **** 		{
+ 339:Drivers/MS5637/ms5637.c **** 			OFF2 += 17 * ((int64_t)TEMP + 1500) * ((int64_t)TEMP + 1500) ;
+ 340:Drivers/MS5637/ms5637.c **** 			SENS2 += 9 * ((int64_t)TEMP + 1500) * ((int64_t)TEMP + 1500) ;
+ 341:Drivers/MS5637/ms5637.c **** 		}
+ 342:Drivers/MS5637/ms5637.c **** 	}
+ 343:Drivers/MS5637/ms5637.c **** 	else
+ 344:Drivers/MS5637/ms5637.c **** 	{
+ 345:Drivers/MS5637/ms5637.c **** 		T2 = ( 5 * ( (int64_t)dT  * (int64_t)dT  ) ) >> 38;
+ 346:Drivers/MS5637/ms5637.c **** 		OFF2 = 0 ;
+ 347:Drivers/MS5637/ms5637.c **** 		SENS2 = 0 ;
+ 348:Drivers/MS5637/ms5637.c **** 	}
+ 349:Drivers/MS5637/ms5637.c **** 	
+ 350:Drivers/MS5637/ms5637.c **** 	// OFF = OFF_T1 + TCO * dT
+ 351:Drivers/MS5637/ms5637.c **** 	OFF = ( (int64_t)(eeprom_coeff[MS5637_PRESSURE_OFFSET_INDEX]) << 17 ) + ( ( (int64_t)(eeprom_coeff
+ 352:Drivers/MS5637/ms5637.c **** 	OFF -= OFF2 ;
+ 353:Drivers/MS5637/ms5637.c **** 	
+ 354:Drivers/MS5637/ms5637.c **** 	// Sensitivity at actual temperature = SENS_T1 + TCS * dT
+ 355:Drivers/MS5637/ms5637.c **** 	SENS = ( (int64_t)eeprom_coeff[MS5637_PRESSURE_SENSITIVITY_INDEX] << 16 ) + ( ((int64_t)eeprom_coe
+ 356:Drivers/MS5637/ms5637.c **** 	SENS -= SENS2 ;
+ 357:Drivers/MS5637/ms5637.c **** 	
+ 358:Drivers/MS5637/ms5637.c **** 	// Temperature compensated pressure = D1 * SENS - OFF
+ 359:Drivers/MS5637/ms5637.c **** 	P = ( ( (adc_pressure * SENS) >> 21 ) - OFF ) >> 15 ;
+ 360:Drivers/MS5637/ms5637.c **** 	
+ 361:Drivers/MS5637/ms5637.c **** 	*temperature = ( (float)TEMP - T2 ) / 100;
+ 362:Drivers/MS5637/ms5637.c **** 	*pressure = (float)P / 100;
+ 363:Drivers/MS5637/ms5637.c **** 	
+ 364:Drivers/MS5637/ms5637.c **** 	return status;
+ 365:Drivers/MS5637/ms5637.c **** }
+ 565              		.loc 1 365 0
+ 566 0032 2046     		mov	r0, r4
+ 567 0034 0FB0     		add	sp, sp, #60
+ 568              	.LCFI21:
+ 569              		.cfi_remember_state
+ 570              		.cfi_def_cfa_offset 44
+ 571              		@ sp needed
+ 572 0036 BDEC028B 		vldm	sp!, {d8}
+ 573              	.LCFI22:
+ 574              		.cfi_restore 80
+ 575              		.cfi_restore 81
+ 576              		.cfi_def_cfa_offset 36
+ 577 003a BDE8F08F 		pop	{r4, r5, r6, r7, r8, r9, r10, fp, pc}
+ 578              	.LVL44:
+ 579              	.L58:
+ 580              	.LCFI23:
+ 581              		.cfi_restore_state
+ 313:Drivers/MS5637/ms5637.c **** 	cmd |= MS5637_START_PRESSURE_ADC_CONVERSION;
+ 582              		.loc 1 313 0
+ 583 003e B94B     		ldr	r3, .L61+4
+ 584 0040 1878     		ldrb	r0, [r3]	@ zero_extendqisi2
+ 585              	.LVL45:
+ARM GAS  /tmp/ccMf2Fv6.s 			page 18
+
+
+ 586 0042 4000     		lsls	r0, r0, #1
+ 587 0044 C0B2     		uxtb	r0, r0
+ 588              	.LVL46:
+ 315:Drivers/MS5637/ms5637.c **** 	if( status != ms5637_status_ok)
+ 589              		.loc 1 315 0
+ 590 0046 0CA9     		add	r1, sp, #48
+ 591 0048 40F04000 		orr	r0, r0, #64
+ 592              	.LVL47:
+ 593 004c FFF7FEFF 		bl	ms5637_conversion_and_read_adc
+ 594              	.LVL48:
+ 316:Drivers/MS5637/ms5637.c **** 		return status;
+ 595              		.loc 1 316 0
+ 596 0050 0446     		mov	r4, r0
+ 597 0052 0028     		cmp	r0, #0
+ 598 0054 EDD1     		bne	.L50
+ 321:Drivers/MS5637/ms5637.c ****         return ms5637_status_i2c_transfer_error;
+ 599              		.loc 1 321 0
+ 600 0056 0D9A     		ldr	r2, [sp, #52]
+ 601 0058 002A     		cmp	r2, #0
+ 602 005a 00F05C81 		beq	.L55
+ 321:Drivers/MS5637/ms5637.c ****         return ms5637_status_i2c_transfer_error;
+ 603              		.loc 1 321 0 is_stmt 0 discriminator 1
+ 604 005e 0C9B     		ldr	r3, [sp, #48]
+ 605 0060 0993     		str	r3, [sp, #36]
+ 606 0062 002B     		cmp	r3, #0
+ 607 0064 00F05981 		beq	.L56
+ 325:Drivers/MS5637/ms5637.c **** 	
+ 608              		.loc 1 325 0 is_stmt 1
+ 609 0068 AF4B     		ldr	r3, .L61+8
+ 610 006a 5989     		ldrh	r1, [r3, #10]
+ 611 006c A2EB0122 		sub	r2, r2, r1, lsl #8
+ 612              	.LVL49:
+ 328:Drivers/MS5637/ms5637.c **** 	
+ 613              		.loc 1 328 0
+ 614 0070 9246     		mov	r10, r2
+ 615 0072 4FEAE27B 		asr	fp, r2, #31
+ 616 0076 CDE902AB 		strd	r10, [sp, #8]
+ 617 007a B3F80C80 		ldrh	r8, [r3, #12]
+ 618 007e A2FB0801 		umull	r0, r1, r2, r8
+ 619              	.LVL50:
+ 620 0082 5B46     		mov	r3, fp
+ 621 0084 08FB0B11 		mla	r1, r8, fp, r1
+ 622 0088 4FEAD05C 		lsr	ip, r0, #23
+ 623 008c 4CEA412C 		orr	ip, ip, r1, lsl #9
+ 624 0090 0CF5FA6C 		add	ip, ip, #2000
+ 625              	.LVL51:
+ 331:Drivers/MS5637/ms5637.c **** 	{
+ 626              		.loc 1 331 0
+ 627 0094 BCF5FA6F 		cmp	ip, #2000
+ 628 0098 80F2B380 		bge	.L51
+ 333:Drivers/MS5637/ms5637.c **** 		OFF2 = 61 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) / 16 ;
+ 629              		.loc 1 333 0
+ 630 009c 02FB03F3 		mul	r3, r2, r3
+ 631 00a0 A2FB02AB 		umull	r10, fp, r2, r2
+ 632 00a4 0BEB430B 		add	fp, fp, r3, lsl #1
+ 633 00a8 1AEB0A08 		adds	r8, r10, r10
+ 634 00ac 4BEB0B09 		adc	r9, fp, fp
+ARM GAS  /tmp/ccMf2Fv6.s 			page 19
+
+
+ 635 00b0 1AEB0800 		adds	r0, r10, r8
+ 636 00b4 4BEB0901 		adc	r1, fp, r9
+ 637 00b8 4B10     		asrs	r3, r1, #1
+ 638 00ba 0A93     		str	r3, [sp, #40]
+ 639 00bc CB17     		asrs	r3, r1, #31
+ 640 00be 0B93     		str	r3, [sp, #44]
+ 641              	.LVL52:
+ 334:Drivers/MS5637/ms5637.c **** 		SENS2 = 29 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) / 16 ;
+ 642              		.loc 1 334 0
+ 643 00c0 6046     		mov	r0, ip
+ 644 00c2 C117     		asrs	r1, r0, #31
+ 645 00c4 CDE90001 		strd	r0, [sp]
+ 646 00c8 BCF5FA6A 		subs	r10, ip, #2000
+ 647 00cc 41F1FF3B 		adc	fp, r1, #-1
+ 648 00d0 4FEA0B13 		lsl	r3, fp, #4
+ 649              	.LVL53:
+ 650 00d4 4FEA0A10 		lsl	r0, r10, #4
+ 651 00d8 43EA1A71 		orr	r1, r3, r10, lsr #28
+ 652 00dc B0EB0A00 		subs	r0, r0, r10
+ 653 00e0 61EB0B01 		sbc	r1, r1, fp
+ 654 00e4 8B00     		lsls	r3, r1, #2
+ 655 00e6 43EA9073 		orr	r3, r3, r0, lsr #30
+ 656 00ea 4FEA800E 		lsl	lr, r0, #2
+ 657 00ee 1EEB0A00 		adds	r0, lr, r10
+ 658 00f2 43EB0B01 		adc	r1, r3, fp
+ 659 00f6 0AFB01F3 		mul	r3, r10, r1
+ 660 00fa 00FB0B33 		mla	r3, r0, fp, r3
+ 661 00fe AAFB0001 		umull	r0, r1, r10, r0
+ 662 0102 1944     		add	r1, r1, r3
+ 663 0104 8046     		mov	r8, r0
+ 664 0106 8946     		mov	r9, r1
+ 665 0108 0028     		cmp	r0, #0
+ 666 010a 71F10003 		sbcs	r3, r1, #0
+ 667 010e 6EDB     		blt	.L59
+ 668              	.L52:
+ 669 0110 4FEA1813 		lsr	r3, r8, #4
+ 670 0114 43EA0973 		orr	r3, r3, r9, lsl #28
+ 671 0118 0493     		str	r3, [sp, #16]
+ 672 011a 4FEA2913 		asr	r3, r9, #4
+ 673 011e 0593     		str	r3, [sp, #20]
+ 674              	.LVL54:
+ 335:Drivers/MS5637/ms5637.c **** 		
+ 675              		.loc 1 335 0
+ 676 0120 4FEACB03 		lsl	r3, fp, #3
+ 677 0124 4FEACA00 		lsl	r0, r10, #3
+ 678 0128 43EA5A71 		orr	r1, r3, r10, lsr #29
+ 679 012c B0EB0A00 		subs	r0, r0, r10
+ 680 0130 61EB0B01 		sbc	r1, r1, fp
+ 681 0134 8B00     		lsls	r3, r1, #2
+ 682 0136 43EA9073 		orr	r3, r3, r0, lsr #30
+ 683 013a 4FEA800E 		lsl	lr, r0, #2
+ 684 013e 1EEB0A00 		adds	r0, lr, r10
+ 685 0142 43EB0B01 		adc	r1, r3, fp
+ 686 0146 0AFB01F3 		mul	r3, r10, r1
+ 687 014a 00FB0B33 		mla	r3, r0, fp, r3
+ 688 014e AAFB00AB 		umull	r10, fp, r10, r0
+ 689 0152 9B44     		add	fp, fp, r3
+ARM GAS  /tmp/ccMf2Fv6.s 			page 20
+
+
+ 690 0154 5046     		mov	r0, r10
+ 691 0156 5946     		mov	r1, fp
+ 692 0158 BAF1000F 		cmp	r10, #0
+ 693 015c 7BF10003 		sbcs	r3, fp, #0
+ 694 0160 4ADB     		blt	.L60
+ 695              	.L53:
+ 696 0162 0309     		lsrs	r3, r0, #4
+ 697 0164 43EA0173 		orr	r3, r3, r1, lsl #28
+ 698 0168 0693     		str	r3, [sp, #24]
+ 699 016a 0B11     		asrs	r3, r1, #4
+ 700 016c 0793     		str	r3, [sp, #28]
+ 701              	.LVL55:
+ 337:Drivers/MS5637/ms5637.c **** 		{
+ 702              		.loc 1 337 0
+ 703 016e 6F4B     		ldr	r3, .L61+12
+ 704 0170 9C45     		cmp	ip, r3
+ 705 0172 61DA     		bge	.L54
+ 339:Drivers/MS5637/ms5637.c **** 			SENS2 += 9 * ((int64_t)TEMP + 1500) * ((int64_t)TEMP + 1500) ;
+ 706              		.loc 1 339 0
+ 707 0174 40F2DC58 		movw	r8, #1500
+ 708 0178 4FF00009 		mov	r9, #0
+ 709 017c DDE90001 		ldrd	r0, [sp]
+ 710 0180 10EB0800 		adds	r0, r0, r8
+ 711 0184 41EB0901 		adc	r1, r1, r9
+ 712 0188 8046     		mov	r8, r0
+ 713 018a 8946     		mov	r9, r1
+ 714 018c 0B01     		lsls	r3, r1, #4
+ 715 018e 4FEA001A 		lsl	r10, r0, #4
+ 716 0192 43EA107B 		orr	fp, r3, r0, lsr #28
+ 717 0196 1AEB0000 		adds	r0, r10, r0
+ 718 019a 4BEB0101 		adc	r1, fp, r1
+ 719 019e 08FB01F3 		mul	r3, r8, r1
+ 720 01a2 00FB0933 		mla	r3, r0, r9, r3
+ 721 01a6 A8FB0001 		umull	r0, r1, r8, r0
+ 722 01aa 1944     		add	r1, r1, r3
+ 723 01ac DDE904AB 		ldrd	r10, [sp, #16]
+ 724 01b0 1AEB000A 		adds	r10, r10, r0
+ 725 01b4 4BEB010B 		adc	fp, fp, r1
+ 726 01b8 CDE904AB 		strd	r10, [sp, #16]
+ 727              	.LVL56:
+ 340:Drivers/MS5637/ms5637.c **** 		}
+ 728              		.loc 1 340 0
+ 729 01bc 4FEAC903 		lsl	r3, r9, #3
+ 730 01c0 4FEAC80A 		lsl	r10, r8, #3
+ 731              	.LVL57:
+ 732 01c4 43EA587B 		orr	fp, r3, r8, lsr #29
+ 733 01c8 1AEB0800 		adds	r0, r10, r8
+ 734 01cc 4BEB0901 		adc	r1, fp, r9
+ 735 01d0 08FB01F3 		mul	r3, r8, r1
+ 736 01d4 00FB0933 		mla	r3, r0, r9, r3
+ 737 01d8 A8FB0001 		umull	r0, r1, r8, r0
+ 738 01dc 1944     		add	r1, r1, r3
+ 739 01de DDE90678 		ldrd	r7, [sp, #24]
+ 740 01e2 3F18     		adds	r7, r7, r0
+ 741 01e4 48EB0108 		adc	r8, r8, r1
+ 742 01e8 CDE90678 		strd	r7, [sp, #24]
+ 743              	.LVL58:
+ARM GAS  /tmp/ccMf2Fv6.s 			page 21
+
+
+ 744 01ec 24E0     		b	.L54
+ 745              	.LVL59:
+ 746              	.L59:
+ 334:Drivers/MS5637/ms5637.c **** 		SENS2 = 29 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) / 16 ;
+ 747              		.loc 1 334 0
+ 748 01ee 10F10F08 		adds	r8, r0, #15
+ 749 01f2 41F10009 		adc	r9, r1, #0
+ 750 01f6 8BE7     		b	.L52
+ 751              	.LVL60:
+ 752              	.L60:
+ 335:Drivers/MS5637/ms5637.c **** 		
+ 753              		.loc 1 335 0
+ 754 01f8 1AF10F00 		adds	r0, r10, #15
+ 755 01fc 4BF10001 		adc	r1, fp, #0
+ 756 0200 AFE7     		b	.L53
+ 757              	.LVL61:
+ 758              	.L51:
+ 345:Drivers/MS5637/ms5637.c **** 		OFF2 = 0 ;
+ 759              		.loc 1 345 0
+ 760 0202 039B     		ldr	r3, [sp, #12]
+ 761 0204 02FB03F3 		mul	r3, r2, r3
+ 762 0208 A2FB0289 		umull	r8, r9, r2, r2
+ 763 020c 09EB4309 		add	r9, r9, r3, lsl #1
+ 764 0210 4FEA8903 		lsl	r3, r9, #2
+ 765 0214 4FEA880A 		lsl	r10, r8, #2
+ 766 0218 43EA987B 		orr	fp, r3, r8, lsr #30
+ 767 021c 1AEB0800 		adds	r0, r10, r8
+ 768 0220 4BEB0901 		adc	r1, fp, r9
+ 769 0224 8B11     		asrs	r3, r1, #6
+ 770 0226 0A93     		str	r3, [sp, #40]
+ 771 0228 CB17     		asrs	r3, r1, #31
+ 772 022a 0B93     		str	r3, [sp, #44]
+ 773              	.LVL62:
+ 347:Drivers/MS5637/ms5637.c **** 	}
+ 774              		.loc 1 347 0
+ 775 022c 0020     		movs	r0, #0
+ 776 022e 0021     		movs	r1, #0
+ 777 0230 CDE90601 		strd	r0, [sp, #24]
+ 346:Drivers/MS5637/ms5637.c **** 		SENS2 = 0 ;
+ 778              		.loc 1 346 0
+ 779 0234 CDE90401 		strd	r0, [sp, #16]
+ 780              	.LVL63:
+ 781              	.L54:
+ 351:Drivers/MS5637/ms5637.c **** 	OFF -= OFF2 ;
+ 782              		.loc 1 351 0
+ 783 0238 3B4B     		ldr	r3, .L61+8
+ 784 023a 9888     		ldrh	r0, [r3, #4]
+ 785 023c 4FEAD03B 		lsr	fp, r0, #15
+ 786 0240 4FEA404A 		lsl	r10, r0, #17
+ 787 0244 1889     		ldrh	r0, [r3, #8]
+ 788 0246 A2FB0089 		umull	r8, r9, r2, r0
+ 789 024a 039F     		ldr	r7, [sp, #12]
+ 790 024c 00FB0799 		mla	r9, r0, r7, r9
+ 791 0250 4FEA9811 		lsr	r1, r8, #6
+ 792 0254 41EA8961 		orr	r1, r1, r9, lsl #26
+ 793 0258 0091     		str	r1, [sp]
+ 794 025a 4FEAA911 		asr	r1, r9, #6
+ARM GAS  /tmp/ccMf2Fv6.s 			page 22
+
+
+ 795 025e 0191     		str	r1, [sp, #4]
+ 796 0260 DDE90001 		ldrd	r0, [sp]
+ 797 0264 10EB0A00 		adds	r0, r0, r10
+ 798 0268 41EB0B01 		adc	r1, r1, fp
+ 799              	.LVL64:
+ 352:Drivers/MS5637/ms5637.c **** 	
+ 800              		.loc 1 352 0
+ 801 026c DDE90478 		ldrd	r7, [sp, #16]
+ 802 0270 C71B     		subs	r7, r0, r7
+ 803 0272 61EB0808 		sbc	r8, r1, r8
+ 804 0276 CDE90078 		strd	r7, [sp]
+ 805              	.LVL65:
+ 355:Drivers/MS5637/ms5637.c **** 	SENS -= SENS2 ;
+ 806              		.loc 1 355 0
+ 807 027a 5888     		ldrh	r0, [r3, #2]
+ 808 027c 4FEA1049 		lsr	r9, r0, #16
+ 809 0280 4FEA0048 		lsl	r8, r0, #16
+ 810 0284 D888     		ldrh	r0, [r3, #6]
+ 811 0286 A2FB0023 		umull	r2, r3, r2, r0
+ 812              	.LVL66:
+ 813 028a 039F     		ldr	r7, [sp, #12]
+ 814              	.LVL67:
+ 815 028c 00FB0733 		mla	r3, r0, r7, r3
+ 816 0290 4FEAD21A 		lsr	r10, r2, #7
+ 817 0294 4AEA436A 		orr	r10, r10, r3, lsl #25
+ 818 0298 4FEAE31B 		asr	fp, r3, #7
+ 819 029c 1AEB0800 		adds	r0, r10, r8
+ 820 02a0 4BEB0901 		adc	r1, fp, r9
+ 821              	.LVL68:
+ 356:Drivers/MS5637/ms5637.c **** 	
+ 822              		.loc 1 356 0
+ 823 02a4 DDE90623 		ldrd	r2, [sp, #24]
+ 824 02a8 821A     		subs	r2, r0, r2
+ 825 02aa 61EB0303 		sbc	r3, r1, r3
+ 826 02ae 1046     		mov	r0, r2
+ 827              	.LVL69:
+ 828 02b0 1946     		mov	r1, r3
+ 829              	.LVL70:
+ 359:Drivers/MS5637/ms5637.c **** 	
+ 830              		.loc 1 359 0
+ 831 02b2 099B     		ldr	r3, [sp, #36]
+ 832 02b4 A3FB00AB 		umull	r10, fp, r3, r0
+ 833 02b8 03FB01BB 		mla	fp, r3, r1, fp
+ 834 02bc 4FEA5A52 		lsr	r2, r10, #21
+ 835 02c0 42EACB22 		orr	r2, r2, fp, lsl #11
+ 836 02c4 4FEA6B53 		asr	r3, fp, #21
+ 837 02c8 DDE90078 		ldrd	r7, [sp]
+ 838 02cc D71B     		subs	r7, r2, r7
+ 839 02ce 63EB0808 		sbc	r8, r3, r8
+ 840 02d2 FF0B     		lsrs	r7, r7, #15
+ 841 02d4 47EA4847 		orr	r7, r7, r8, lsl #17
+ 842 02d8 4FEAE838 		asr	r8, r8, #15
+ 843              	.LVL71:
+ 361:Drivers/MS5637/ms5637.c **** 	*pressure = (float)P / 100;
+ 844              		.loc 1 361 0
+ 845 02dc 07EE90CA 		vmov	s15, ip	@ int
+ 846 02e0 B8EEE78A 		vcvt.f32.s32	s16, s15
+ARM GAS  /tmp/ccMf2Fv6.s 			page 23
+
+
+ 847 02e4 0A98     		ldr	r0, [sp, #40]
+ 848              	.LVL72:
+ 849 02e6 0B99     		ldr	r1, [sp, #44]
+ 850 02e8 FFF7FEFF 		bl	__aeabi_l2f
+ 851              	.LVL73:
+ 852 02ec 07EE900A 		vmov	s15, r0
+ 853 02f0 38EE678A 		vsub.f32	s16, s16, s15
+ 854 02f4 DFED0E8A 		vldr.32	s17, .L61+16
+ 855 02f8 C8EE287A 		vdiv.f32	s15, s16, s17
+ 856 02fc C6ED007A 		vstr.32	s15, [r6]
+ 362:Drivers/MS5637/ms5637.c **** 	
+ 857              		.loc 1 362 0
+ 858 0300 3846     		mov	r0, r7
+ 859 0302 4146     		mov	r1, r8
+ 860 0304 FFF7FEFF 		bl	__aeabi_l2f
+ 861              	.LVL74:
+ 862 0308 07EE900A 		vmov	s15, r0
+ 863 030c C7EEA87A 		vdiv.f32	s15, s15, s17
+ 864 0310 C5ED007A 		vstr.32	s15, [r5]
+ 364:Drivers/MS5637/ms5637.c **** }
+ 865              		.loc 1 364 0
+ 866 0314 8DE6     		b	.L50
+ 867              	.LVL75:
+ 868              	.L55:
+ 322:Drivers/MS5637/ms5637.c **** 
+ 869              		.loc 1 322 0
+ 870 0316 0224     		movs	r4, #2
+ 871 0318 8BE6     		b	.L50
+ 872              	.L56:
+ 873 031a 0224     		movs	r4, #2
+ 874 031c 89E6     		b	.L50
+ 875              	.L62:
+ 876 031e 00BF     		.align	2
+ 877              	.L61:
+ 878 0320 00000000 		.word	.LANCHOR1
+ 879 0324 00000000 		.word	ms5637_resolution_osr
+ 880 0328 00000000 		.word	.LANCHOR0
+ 881 032c 24FAFFFF 		.word	-1500
+ 882 0330 0000C842 		.word	1120403456
+ 883              		.cfi_endproc
+ 884              	.LFE337:
+ 886              		.global	ms5637_coeff_read
+ 887              		.comm	ms5637_resolution_osr,1,1
+ 888              		.section	.bss.eeprom_coeff,"aw",%nobits
+ 889              		.align	2
+ 890              		.set	.LANCHOR0,. + 0
+ 893              	eeprom_coeff:
+ 894 0000 00000000 		.space	14
+ 894      00000000 
+ 894      00000000 
+ 894      0000
+ 895              		.section	.bss.ms5637_coeff_read,"aw",%nobits
+ 896              		.set	.LANCHOR1,. + 0
+ 899              	ms5637_coeff_read:
+ 900 0000 00       		.space	1
+ 901              		.section	.rodata.conversion_time,"a",%progbits
+ 902              		.align	2
+ARM GAS  /tmp/ccMf2Fv6.s 			page 24
+
+
+ 903              		.set	.LANCHOR2,. + 0
+ 906              	conversion_time:
+ 907 0000 E8030000 		.word	1000
+ 908 0004 D0070000 		.word	2000
+ 909 0008 B80B0000 		.word	3000
+ 910 000c 88130000 		.word	5000
+ 911 0010 28230000 		.word	9000
+ 912 0014 68420000 		.word	17000
+ 913              		.text
+ 914              	.Letext0:
+ 915              		.file 2 "/usr/include/newlib/machine/_default_types.h"
+ 916              		.file 3 "/usr/include/newlib/sys/_stdint.h"
+ 917              		.file 4 "/usr/include/newlib/sys/lock.h"
+ 918              		.file 5 "/usr/include/newlib/sys/_types.h"
+ 919              		.file 6 "/usr/lib/gcc/arm-none-eabi/7.3.1/include/stddef.h"
+ 920              		.file 7 "/usr/include/newlib/sys/reent.h"
+ 921              		.file 8 "/usr/include/newlib/math.h"
+ 922              		.file 9 "Drivers/MS5637/ms5637.h"
+ 923              		.file 10 "Drivers/CMSIS/Include/core_cm4.h"
+ 924              		.file 11 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h"
+ 925              		.file 12 "Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g484xx.h"
+ 926              		.file 13 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h"
+ 927              		.file 14 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_dma.h"
+ 928              		.file 15 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h"
+ 929              		.file 16 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_i2c.h"
+ 930              		.file 17 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h"
+ 931              		.file 18 "Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h"
+ 932              		.file 19 "Core/Inc/i2c.h"
+ARM GAS  /tmp/ccMf2Fv6.s 			page 25
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 ms5637.c
+     /tmp/ccMf2Fv6.s:18     .text.ms5637_write_command:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:24     .text.ms5637_write_command:0000000000000000 ms5637_write_command
+     /tmp/ccMf2Fv6.s:84     .text.ms5637_write_command:0000000000000030 $d
+     /tmp/ccMf2Fv6.s:89     .text.ms5637_read_eeprom_coeff:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:95     .text.ms5637_read_eeprom_coeff:0000000000000000 ms5637_read_eeprom_coeff
+     /tmp/ccMf2Fv6.s:174    .text.ms5637_read_eeprom_coeff:0000000000000054 $d
+     /tmp/ccMf2Fv6.s:179    .text.ms5637_read_eeprom:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:185    .text.ms5637_read_eeprom:0000000000000000 ms5637_read_eeprom
+     /tmp/ccMf2Fv6.s:237    .text.ms5637_read_eeprom:0000000000000034 $d
+     /tmp/ccMf2Fv6.s:243    .text.ms5637_conversion_and_read_adc:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:249    .text.ms5637_conversion_and_read_adc:0000000000000000 ms5637_conversion_and_read_adc
+     /tmp/ccMf2Fv6.s:349    .text.ms5637_conversion_and_read_adc:000000000000007c $d
+     /tmp/ccMf2Fv6.s:356    .text.ms5637_init:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:363    .text.ms5637_init:0000000000000000 ms5637_init
+     /tmp/ccMf2Fv6.s:379    .text.ms5637_init:0000000000000008 $d
+                            *COM*:0000000000000001 ms5637_resolution_osr
+     /tmp/ccMf2Fv6.s:384    .text.ms5637_is_connected:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:391    .text.ms5637_is_connected:0000000000000000 ms5637_is_connected
+     /tmp/ccMf2Fv6.s:437    .text.ms5637_is_connected:0000000000000024 $d
+     /tmp/ccMf2Fv6.s:442    .text.ms5637_reset:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:449    .text.ms5637_reset:0000000000000000 ms5637_reset
+     /tmp/ccMf2Fv6.s:470    .text.ms5637_set_resolution:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:477    .text.ms5637_set_resolution:0000000000000000 ms5637_set_resolution
+     /tmp/ccMf2Fv6.s:493    .text.ms5637_set_resolution:0000000000000008 $d
+     /tmp/ccMf2Fv6.s:499    .text.ms5637_read_temperature_and_pressure:0000000000000000 $t
+     /tmp/ccMf2Fv6.s:506    .text.ms5637_read_temperature_and_pressure:0000000000000000 ms5637_read_temperature_and_pressure
+     /tmp/ccMf2Fv6.s:878    .text.ms5637_read_temperature_and_pressure:0000000000000320 $d
+     /tmp/ccMf2Fv6.s:899    .bss.ms5637_coeff_read:0000000000000000 ms5637_coeff_read
+     /tmp/ccMf2Fv6.s:889    .bss.eeprom_coeff:0000000000000000 $d
+     /tmp/ccMf2Fv6.s:893    .bss.eeprom_coeff:0000000000000000 eeprom_coeff
+     /tmp/ccMf2Fv6.s:900    .bss.ms5637_coeff_read:0000000000000000 $d
+     /tmp/ccMf2Fv6.s:902    .rodata.conversion_time:0000000000000000 $d
+     /tmp/ccMf2Fv6.s:906    .rodata.conversion_time:0000000000000000 conversion_time
+
+UNDEFINED SYMBOLS
+HAL_I2C_Master_Transmit
+hi2c2
+HAL_I2C_Master_Receive
+HAL_Delay
+__aeabi_l2f
