@@ -55,6 +55,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void myprintf(const char *fmt, ...);
 void UART_GPS_Callback();
+void timebase_callback();
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -84,8 +85,6 @@ void UART_GPS_Callback();
 #define Battery_Voltage_Sense_GPIO_Port GPIOB
 #define Battery_Current_Sense_Pin GPIO_PIN_14
 #define Battery_Current_Sense_GPIO_Port GPIOB
-#define Battery_Temperature_Sense_Pin GPIO_PIN_15
-#define Battery_Temperature_Sense_GPIO_Port GPIOB
 #define SENSOR_I2C2_SDA_Pin GPIO_PIN_8
 #define SENSOR_I2C2_SDA_GPIO_Port GPIOA
 #define SENSOR_I2C2_SCL_Pin GPIO_PIN_9

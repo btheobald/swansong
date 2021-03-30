@@ -61,8 +61,6 @@ extern DAC_HandleTypeDef hdac3;
 extern DMA_HandleTypeDef hdma_spi3_rx;
 extern DMA_HandleTypeDef hdma_spi3_tx;
 extern UART_HandleTypeDef huart1;
-extern TIM_HandleTypeDef htim6;
-
 /* USER CODE BEGIN EV */
 //extern char strbuf[200];
 //extern int buflen = 0;
@@ -191,9 +189,9 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-
+  timebase_callback();
   /* USER CODE END SysTick_IRQn 0 */
-
+  HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
   /* USER CODE END SysTick_IRQn 1 */
@@ -270,7 +268,6 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
 
   /* USER CODE END TIM6_DAC_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim6);
   HAL_DAC_IRQHandler(&hdac3);
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
 

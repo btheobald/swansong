@@ -85,7 +85,14 @@ ICM_20948_Device_t myICM;
 lwgps_t hgps;
 lwrb_t hgps_buff;
 uint8_t hgps_buff_data[512];
-  
+FATFS FatFS;
+FIL fil;
+FRESULT fres;
+
+volatile uint8_t update_sensors = 0;
+volatile uint8_t update_screen = 0;
+volatile uint8_t update_log = 0;
+volatile uint32_t timebase = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -181,10 +188,65 @@ int main(void)
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
 
-  /*ssd1306_Init();
-  ssd1306_Fill(White);
-  ssd1306_WriteString("Swansong", Font_16x26, Black);
-  ssd1306_UpdateScreen();*/
+  ssd1306_Init();
+
+  ssd1306_SetContrast(0);
+
+  HAL_Delay(500);
+
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(20,7);
+  ssd1306_WriteString("Swansong", Font_11x18, White);
+  ssd1306_UpdateScreen();
+
+  for(int c = 0; c < 255; c++) {
+    ssd1306_SetContrast(c);
+    HAL_Delay(10);
+  }
+
+  HAL_Delay(500);
+
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Configure SD Card", Font_6x8, White);
+  ssd1306_UpdateScreen();
+
+  // Make sure FatFS struct is clean
+  memset(&FatFS, 0, sizeof(FATFS));
+
+  if(f_mount(&FatFS, "", 1) != FR_OK) {
+    f_mount(NULL, "", 0);
+    ssd1306_SetCursor(0,8);
+    ssd1306_WriteString("Mount Failed", Font_6x8, White);
+    ssd1306_UpdateScreen();
+    while(1) {HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE);}
+  } 
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Filesystem Mounted", Font_6x8, White);
+  ssd1306_UpdateScreen();
+
+  //Let's get some statistics from the SD card
+  DWORD free_clusters, free_sectors, total_sectors;
+
+  FATFS* getFreeFs;
+  fres = f_getfree("", &free_clusters, &getFreeFs);
+  if (fres != FR_OK) { while(1){} }
+
+  //Formula comes from ChaN's documentation
+  total_sectors = (getFreeFs->n_fatent - 2) * getFreeFs->csize;
+  free_sectors = free_clusters * getFreeFs->csize;
+
+  char sdstr[16];
+  sprintf(sdstr, "%lu/%luMiB Used", (total_sectors-free_sectors) / 2000, total_sectors / 2000);
+  ssd1306_SetCursor(0,16);
+  ssd1306_WriteString(sdstr, Font_6x8, White);
+  ssd1306_UpdateScreen();
+
+  HAL_Delay(1000);
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Configure ICM20948", Font_6x8, White);
+  ssd1306_UpdateScreen();
 
   myprintf("\r\nICM 20948 Setup\r\n");
   if(ICM_20948_check_id( &myICM ) == ICM_20948_Stat_Ok) {
@@ -200,7 +262,7 @@ int main(void)
     myprintf("- SW Reset - FAIL\r\n"); // TODO: Try a software reset?
     while(1) {};
   }
-  HAL_Delay(100);
+  HAL_Delay(500);
 
   if(ICM_20948_sleep( &myICM, false ) == ICM_20948_Stat_Ok) {
     myprintf("- Wake from Sleep - PASS\r\n");
@@ -230,36 +292,42 @@ int main(void)
     while(1) {};
   }
 
-  if(ICM_20948_i2c_master_reset( &myICM ) == ICM_20948_Stat_Ok) {
-    myprintf("- I2C Master Reset - PASS\r\n");
-  } else {
-    myprintf("- I2C Master Reset - FAIL\r\n");
-    while(1) {};
-  }
-
-  HAL_Delay(100);
-
-  if(ICM_20948_i2c_master_reset( &myICM ) == ICM_20948_Stat_Ok) {
-    myprintf("- I2C Master Reset - PASS\r\n");
-  } else {
-    myprintf("- I2C Master Reset - FAIL\r\n");
-    while(1) {};
-  }
-
-  HAL_Delay(100);
-
-  if(ICM_20948_i2c_master_reset( &myICM ) == ICM_20948_Stat_Ok) {
-    myprintf("- I2C Master Reset - PASS\r\n");
-  } else {
-    myprintf("- I2C Master Reset - FAIL\r\n");
-    while(1) {};
-  }
-
-  HAL_Delay(100);
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Configure AK09916", Font_6x8, White);
+  ssd1306_UpdateScreen();
 
   uint8_t AK09916_whoiam = 0;
-  ICM_20948_i2c_master_single_r( &myICM, MAG_AK09916_I2C_ADDR, AK09916_REG_WIA2, &AK09916_whoiam);
-  myprintf("- AK09916 WHOIAM - 0x%02x - 0x%02x\r\n", AK09916_whoiam, MAG_AK09916_WHO_AM_I & 0xFF);
+  int ak_tries = 0;
+  while(AK09916_whoiam != (MAG_AK09916_WHO_AM_I & 0xFF)) {
+
+    if(ICM_20948_i2c_master_reset( &myICM ) == ICM_20948_Stat_Ok) {
+      myprintf("- I2C Master Reset - PASS\r\n");
+    } else {
+      myprintf("- I2C Master Reset - FAIL\r\n");
+      while(1) {};
+    }
+
+    HAL_Delay(500);
+ 
+    ICM_20948_i2c_master_single_r( &myICM, MAG_AK09916_I2C_ADDR, AK09916_REG_WIA2, &AK09916_whoiam);
+    myprintf("- AK09916 WHOIAM - 0x%02x - 0x%02x\r\n", AK09916_whoiam, MAG_AK09916_WHO_AM_I & 0xFF);
+
+    char trystr[10];
+    sprintf(trystr, "Tries: %d", ak_tries);
+    ssd1306_SetCursor(0,16);
+    ssd1306_WriteString(trystr, Font_6x8, White);
+    ssd1306_UpdateScreen();
+
+    ak_tries++;
+    if(ak_tries > 5) {
+      ssd1306_Fill(Black);
+      ssd1306_SetCursor(0,16);
+      ssd1306_WriteString("Cannot Find AK09916", Font_6x8, White);
+      ssd1306_UpdateScreen();
+      while(1) {HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE);}
+    }
+
+  }
 
   AK09916_CNTL2_Reg_t regctrl2;
   regctrl2.MODE = AK09916_mode_cont_100hz;
@@ -276,6 +344,17 @@ int main(void)
     myprintf("- AK09916 Configure Status 1 - FAIL\r\n");
     while(1) {};
   }
+
+  ssd1306_SetCursor(0,16);
+  ssd1306_WriteString("Configured AK09916", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Configure ICM20948", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
 
   if( ICM_20948_set_clock_source( &myICM, ICM_20948_Clock_Auto ) == ICM_20948_Stat_Ok ) {
     myprintf("- Set Clock - PASS\r\n");
@@ -353,6 +432,11 @@ int main(void)
     while(1) {};
   }
 
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Configure DMP", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+
   // Disable data ready interrupt
   ICM_20948_INT_enable_t en;    
   if ( ICM_20948_int_enable( &myICM, NULL, &en ) == ICM_20948_Stat_Ok ) {
@@ -407,7 +491,12 @@ int main(void)
     myprintf("- Set DMP Start Address Bytes - FAIL\r\n");
     while(1) {};
   }
-  
+
+  ssd1306_SetCursor(0,16);
+  ssd1306_WriteString("Bitstream Load", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+
   if ( ICM_20948_set_bank( &myICM, 0) == ICM_20948_Stat_Ok ) {
     myprintf("- Set Bank 0 - PASS\r\n");
   } else {
@@ -549,18 +638,68 @@ int main(void)
     while(1) {};
   }
 
-  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_ORIENTATION, 1) == ICM_20948_Stat_Ok) {
-    myprintf("- DMP Enable Orientation - PASS\r\n");
+  //if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GEOMAGNETIC_ROTATION_VECTOR | INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR | INV_ICM20948_SENSOR_ACCELEROMETER | INV_ICM20948_SENSOR_GYROSCOPE, 1) == ICM_20948_Stat_Ok) {
+  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_ACCELEROMETER, 1) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Enable Accelerometer - PASS\r\n");
   } else {
-    myprintf("- DMP Enable Orientation - Fail\r\n");
+    myprintf("- DMP Enable Accelerometer - Fail\r\n");
     while(1) {};
   }
-  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok) {
+  /*if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Enable Rotation Vector - PASS\r\n");
+  } else {
+    myprintf("- DMP Enable Rotation Vector - Fail\r\n");
+    while(1) {};
+  }*/
+  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Enable GRV - PASS\r\n");
+  } else {
+    myprintf("- DMP Enable GRV - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GYROSCOPE, 1) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Enable Gyroscope - PASS\r\n");
+  } else {
+    myprintf("- DMP Enable Gyroscope - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GEOMAGNETIC_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Enable Geomagnetic Vector - PASS\r\n");
+  } else {
+    myprintf("- DMP Enable Geomagnetic Vector - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Accel, 0) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Set Sensor Period - PASS\r\n");
   } else {
     myprintf("- DMP Set Sensor Period - Fail\r\n");
     while(1) {};
   }
+  /*if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }*/
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Gyro_Calibr, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Geomag, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }
+
   if ( ICM_20948_enable_FIFO( &myICM, 1) == ICM_20948_Stat_Ok ) {
     myprintf("- Enable FIFO - PASS\r\n");
   } else {
@@ -573,6 +712,12 @@ int main(void)
     myprintf("- Enable DMP - Fail\r\n");
     while(1) {};
   }
+  
+  ssd1306_SetCursor(0,16);
+  ssd1306_WriteString("Configured DMP", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+
   if ( ICM_20948_reset_DMP( &myICM ) == ICM_20948_Stat_Ok ) {
     myprintf("- Reset DMP - PASS\r\n");
   } else {
@@ -586,21 +731,44 @@ int main(void)
     while(1) {};
   }
 
-  HAL_Delay(100);
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Configure ICM20948", Font_6x8, White);
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Configured ICM20948", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(500);
+
   myprintf("\r\nICM 20948 DMP Enable - PASS\r\n");
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4, GPIO_PIN_SET);
+
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Configure MS5637", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(100);
 
   uint8_t i2c_buf[4];
 
   if(ms5637_is_connected() == false) {
     myprintf("No response from ms5637");
-    while(1) {}
+    ssd1306_SetCursor(0,8);
+    ssd1306_WriteString("Cannot find MS5637", Font_6x8, White);
+    ssd1306_UpdateScreen();
+    HAL_Delay(250);
+    while(1) {HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE);}
   }
   ms5637_reset();
   float temperature = 0;
   float pressure = 0;
   float altitude = 0;
+
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Configured MS5637", Font_6x8, White);
+  ssd1306_UpdateScreen();
+
+  HAL_Delay(1000);
 
   float avg_alt_sum = 0;
   uint32_t avg_batv_sum = 0;
@@ -608,50 +776,104 @@ int main(void)
   float avg_alt = 0;
   uint32_t avg_batv = 0;
 
-  ssd1306_Init();
-  char buf[16] = {};
+  char buf[32] = {0};
+  uint8_t rx;
+
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Wait for GPS Fix", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(100);
 
   __HAL_UART_ENABLE(&huart1);
 
   HAL_OPAMP_Start(&hopamp4);
+  //HAL_OPAMP_Start(&hopamp2);
 
   lwgps_init(&hgps);
   lwrb_init(&hgps_buff, hgps_buff_data, 512);
-  
-  char str[16];
-  uint8_t rx;
 
-  //USART1->CR1 |= USART_CR1_RXNEIE; // Enable Interrupt
+  // Wait for a GPS fix to get UTC
+  while(hgps.fix == false) {
+    if (lwrb_get_full(&hgps_buff)) {        /* Check if anything in buffer now */
+        while (lwrb_read(&hgps_buff, &rx, 1) == 1) {
+            lwgps_process(&hgps, &rx, 1); 
+        }
+    }
+    sprintf(buf, "%2d/%2d", hgps.sats_in_use, hgps.sats_in_view);
+    ssd1306_SetCursor(0,8);
+    ssd1306_WriteString(buf, Font_6x8, White);
+    ssd1306_UpdateScreen();
+    HAL_Delay(250);
+  }
+
+  ssd1306_SetCursor(0,16);
+  ssd1306_WriteString("Got GPS Fix", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(250);
+
+  sprintf(buf, "log%u%u%u.csv", (hgps.hours+1)%24, hgps.minutes, hgps.seconds);
+
+  // Create file for logging
+  fres = f_open(&fil, buf, FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
+  if(fres != FR_OK) {
+    ssd1306_SetCursor(0,24);
+    ssd1306_WriteString("Failed to open log", Font_6x8, White);
+    ssd1306_UpdateScreen();
+    while(1) {};
+  }
+
+  sprintf(buf, "log%u%u%u.csv", (hgps.hours+1)%24, hgps.minutes, hgps.seconds);
+  ssd1306_SetCursor(0,24);
+  ssd1306_WriteString(buf, Font_6x8, White);
+  ssd1306_UpdateScreen();
+  HAL_Delay(1000);
+
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 
-  while(1) {
+  char logline[1024];
 
-    HAL_ADC_Start(&hadc5);
+  icm_20948_DMP_data_t data;
+  ICM_20948_Status_e read_stat;
 
-    if(ms5637_read_temperature_and_pressure(&temperature, &pressure) != ms5637_status_ok) {
-      myprintf("Failed to get Temperature and Pressure\r\n");
-      while(1) {}
-    } else {
-      //myprintf("%2.2fC, %4.2fhPa\r\n", temperature, pressure);
-    }
+  uint16_t batv, bati;
 
-    HAL_ADC_PollForConversion(&hadc5, 10);
-    uint16_t batv = HAL_ADC_GetValue(&hadc5);
+  const float reftemp = 10.8f;
+  const float refpres = 1027.3f;
+  const float atmo_const = -29.27112;
 
-    const float reftemp = 10.0f;
-    const float refpres = 1026.0f;
-    const float atmo_const = -29.27112;
+  uint32_t rot_q1, rot_q2, rot_q3, rot_acc;
+  uint32_t grv_q1, grv_q2, grv_q3;
+  uint32_t acc_x, acc_y, acc_z;
+  uint32_t gyr_x, gyr_y, gyr_z;
+  uint32_t mag_q1, mag_q2, mag_q3, mag_acc;
 
-    altitude = (log(pressure)-log(refpres))*atmo_const*(temperature+273.15);
-    avg_alt_sum += altitude;
-    avg_batv_sum += batv;
-    avg_count++;
-    if(avg_count == 30) {
-      avg_alt = avg_alt_sum/avg_count;
-      avg_batv = avg_batv_sum/avg_count;
-      avg_count = 0;
-      avg_alt_sum = 0;
-      avg_batv_sum = 0;
+  /* USER CODE END 2 */
+
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (HAL_GPIO_ReadPin(USER_BTN_GPIO_Port, USER_BTN_Pin) == GPIO_PIN_RESET)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+
+    if(update_sensors) {
+      HAL_ADC_Start(&hadc5);
+      //HAL_ADC_Start(&hadc2); // Screwed up battery current sense hardware
+
+      ms5637_read_temperature_and_pressure(&temperature, &pressure);
+      HAL_ADC_PollForConversion(&hadc5, 1);
+      batv = HAL_ADC_GetValue(&hadc5);
+      
+      // Screwed up battery current sense hardware
+      // Only good for charging current not discharge :(
+      // HAL_ADC_PollForConversion(&hadc2, 1);
+      // bati = HAL_ADC_GetValue(&hadc2);
+
+      altitude = (log(pressure)-log(refpres))*atmo_const*(reftemp+273.15);
+      update_sensors = 0;
     }
 
     if (lwrb_get_full(&hgps_buff)) {        /* Check if anything in buffer now */
@@ -660,85 +882,114 @@ int main(void)
         }
     }
 
-    ssd1306_Fill(Black);
-    sprintf(buf, "%2.1fC %4.0f %2.1fm", temperature, pressure, avg_alt );
-    ssd1306_SetCursor(1,1);
-    ssd1306_WriteString(buf, Font_7x10, White);
-    sprintf(buf, "%2.1fV %d/%d %2.1fm", (float)((2.5/4096)*batv)*2.0, hgps.sats_in_use, hgps.sats_in_view, hgps.altitude );
-    ssd1306_SetCursor(1,12);
-    ssd1306_WriteString(buf, Font_7x10, White);
-    sprintf(buf, "%.5f %.5f", hgps.latitude, hgps.longitude );
-    ssd1306_SetCursor(1,22);
-    ssd1306_WriteString(buf, Font_7x10, White);
+    if(update_screen) {
+      update_screen = 0;
+      ssd1306_Fill(Black);
+      sprintf(buf, "%2.1fC %4.0fhPa %3.1fm", temperature, pressure, altitude );
+      ssd1306_SetCursor(0,0);
+      ssd1306_WriteString(buf, Font_6x8, White);
+      sprintf(buf, "%1.2fV %d %2d/%2d %3.1fm", (float)((2.5/4096)*batv)*2.0, bati, hgps.sats_in_use, hgps.sats_in_view, hgps.altitude);
+      ssd1306_SetCursor(0,8);
+      ssd1306_WriteString(buf, Font_6x8, White);
+      sprintf(buf, "%.7f %.7f", hgps.latitude, hgps.longitude);
+      ssd1306_SetCursor(0,16);
+      ssd1306_WriteString(buf, Font_6x8, White);
+      sprintf(buf, "%3.1f %3.0f %02d:%02d:%02d", hgps.speed*1.852, hgps.course, (hgps.hours+1)%24, hgps.minutes, hgps.seconds);
+      ssd1306_SetCursor(0,24);
+      ssd1306_WriteString(buf, Font_6x8, White);
+      ssd1306_UpdateScreen();
+    }
 
-    ssd1306_UpdateScreen();
-    //HAL_Delay(5);
-    HAL_GPIO_TogglePin(NAV_STAT_0_GPIO_Port, NAV_STAT_1_Pin);
-  }
-
-  float roll_cal = 0;
-  float pitch_cal = 0;
-  float yaw_cal = 0;
-
-  uint8_t gps_fix_last = 1;
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-
-    icm_20948_DMP_data_t data;
-    ICM_20948_Status_e read_stat;
     read_stat = inv_icm20948_read_dmp_data( &myICM, &data );
 
+    //float qwqwMinusHalf = q0 * q0 - 0.5f; // calculate common terms to avoid repeated operations
+    //float roll = atan2f(q2 * q3 - q0 * q1, qwqwMinusHalf + q3 * q3);
+    //float pitch = -1.0f * asinf(2.0f * (q1 * q3 + q0 * q2));
+    //float yaw = atan2f(q1 * q2 - q0 * q3, qwqwMinusHalf + q1 * q1);
+
     if(read_stat == ICM_20948_Stat_Ok || read_stat == ICM_20948_Stat_FIFOMoreDataAvail ) {
-      if( (data.header & DMP_header_bitmap_Quat9) > 0 ) { // We have asked for orientation data so we should receive Quat9
-        float q1 = ((float)data.Quat9.Data.Q1) / 1073741824.0; // Convert to double. Divide by 2^30
-        float q2 = ((float)data.Quat9.Data.Q2) / 1073741824.0; // Convert to double. Divide by 2^30
-        float q3 = ((float)data.Quat9.Data.Q3) / 1073741824.0; // Convert to double. Divide by 2^30
-        float q0 = sqrt( 1.0 - ((q1 * q1) + (q2 * q2) + (q3 * q3)));
-
-        //myprintf("{\"quat_w\":%.2f, \"quat_x\":%.2f, \"quat_y\":%.2f, \"quat_z\":%.2f}\r\n", q0, q1, q2, q3 );
-
-        float qwqwMinusHalf = q0 * q0 - 0.5f; // calculate common terms to avoid repeated operations
-        float roll = atan2f(q2 * q3 - q0 * q1, qwqwMinusHalf + q3 * q3);
-        float pitch = -1.0f * asinf(2.0f * (q1 * q3 + q0 * q2));
-        float yaw = atan2f(q1 * q2 - q0 * q3, qwqwMinusHalf + q1 * q1);
-
-        if(HAL_GPIO_ReadPin(USER_BTN_GPIO_Port, USER_BTN_Pin) == GPIO_PIN_SET) {
-          pitch_cal = pitch;
-          yaw_cal = yaw;
-          roll_cal = roll;
-        }
-
-        //myprintf("%f; %f; %f\r\n", roll-roll_cal, pitch-pitch_cal, yaw-yaw_cal);
+      /*if( (data.header & DMP_header_bitmap_Quat9) > 0 ) { 
+        rot_q1 = (data.Quat9.Data.Q1);
+        rot_q2 = (data.Quat9.Data.Q2);
+        rot_q3 = (data.Quat9.Data.Q3);
+        rot_acc = (data.Quat9.Data.Accuracy);
 
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
-
-        if(read_stat != ICM_20948_Stat_FIFOMoreDataAvail) {
-          HAL_Delay(10);
-        }
-      }
-      if( (data.header & DMP_header_bitmap_Compass) > 0 ) { // We have asked for orientation data so we should receive Quat9
-        uint32_t mx = data.Compass_Calibr.Data.X;
-        uint32_t my = data.Compass_Calibr.Data.Y;
-        uint32_t mz = data.Compass_Calibr.Data.Z;
-
-        //myprintf("%d, %d, %d\r\n", mx, my, mz);
+      }*/
+      if( (data.header & DMP_header_bitmap_Quat6) > 0 ) { 
+        grv_q1 = (data.Quat6.Data.Q1);
+        grv_q2 = (data.Quat6.Data.Q2);
+        grv_q3 = (data.Quat6.Data.Q3);
 
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
-
-        if(read_stat != ICM_20948_Stat_FIFOMoreDataAvail) {
-          HAL_Delay(10);
-        }
       }
+      if( (data.header & DMP_header_bitmap_Accel) > 0 ) { 
+        acc_x = data.Raw_Accel.Data.X;
+        acc_y = data.Raw_Accel.Data.Y;
+        acc_z = data.Raw_Accel.Data.Z;
+        
+        HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
+      }
+      if( (data.header & DMP_header_bitmap_Gyro_Calibr)) {
+        gyr_x = data.Gyro_Calibr.Data.X;
+        gyr_y = data.Gyro_Calibr.Data.Y;
+        gyr_z = data.Gyro_Calibr.Data.Z;
+        
+        HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
+      }
+      if( (data.header & DMP_header_bitmap_Geomag)) {
+        mag_q1 = data.Geomag.Data.Q1;
+        mag_q2 = data.Geomag.Data.Q2;
+        mag_q3 = data.Geomag.Data.Q3;
+        mag_acc = data.Geomag.Data.Accuracy;
+
+        HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
+      }
+    }
+
+  uint32_t ;
+  uint32_t grv_q1, grv_q2, grv_q3;
+  uint32_t acc_x, acc_y, acc_z;
+  uint32_t gyr_x, gyr_y, gyr_z;
+  uint32_t mag_q1, mag_q2, mag_q3, mag_acc;
+
+    if(update_log) {
+      update_log = 0;
+      sprintf(logline, "%u:%u:%u %d %d %.2f %.3f %.3f %.3f %.7f %.7f %.2f %.2f %u %u %.1f %.1f %.1f %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", hgps.hours, hgps.minutes, hgps.seconds, timebase, batv, temperature, pressure, altitude, hgps.altitude, hgps.latitude, hgps.longitude, hgps.speed, hgps.course, hgps.sats_in_use, hgps.sats_in_view, hgps.dop_h, hgps.dop_p, hgps.dop_v, rot_q1, rot_q2, rot_q3, rot_acc, grv_q1, grv_q2, grv_q3, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_q1, mag_q2, mag_q3, mag_acc);
+      //sprintf(logline, "%u:%u:%u %d %d %.2f %.3f %.3f %.3f %.7f %.7f %.2f %.2f\r\n", hgps.hours, hgps.minutes, hgps.seconds, timebase, batv, temperature, pressure, altitude, hgps.altitude, hgps.latitude, hgps.longitude, hgps.speed, hgps.course);
+      UINT bytesWrote;
+      fres = f_write(&fil, logline, strlen(logline), &bytesWrote);
     }
     //HAL_Delay(500);
   }
+
+  f_close(&fil);
+  f_mount(NULL, "", 0);
+  ssd1306_Fill(Black);
+  ssd1306_SetCursor(0,0);
+  ssd1306_WriteString("Saved Log File", Font_6x8, White);
+  ssd1306_SetCursor(0,8);
+  ssd1306_WriteString("Shutting Down", Font_6x8, White);
+  ssd1306_UpdateScreen();
+  
+  for(int c = 255; c > 0; c--) {
+    ssd1306_SetContrast(c);
+    HAL_Delay(10);
+  }
+
+  ssd1306_SetDisplayOn(false);
+
+  HAL_GPIO_WritePin(IMU_SPI_LS_EN_GPIO_Port, IMU_SPI_LS_EN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(NAV_STAT_0_GPIO_Port, NAV_STAT_0_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(NAV_STAT_1_GPIO_Port, NAV_STAT_1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPS_FORCEON_GPIO_Port, GPS_FORCEON_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPS_EXT_INT_GPIO_Port, GPS_EXT_INT_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPS_RESET_GPIO_Port, GPS_RESET_Pin, GPIO_PIN_RESET);
+  HAL_Delay(1);
+  HAL_GPIO_WritePin(GPS_RESET_GPIO_Port, GPS_RESET_Pin, GPIO_PIN_SET);
+
+  while(1) {HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE);}
+
   /* USER CODE END 3 */
 }
 
@@ -754,18 +1005,17 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
-  RCC_OscInitStruct.PLL.PLLN = 75;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
+  RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -798,7 +1048,7 @@ void SystemClock_Config(void)
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
-  PeriphClkInit.QspiClockSelection = RCC_QSPICLKSOURCE_SYSCLK;
+  PeriphClkInit.QspiClockSelection = RCC_QSPICLKSOURCE_PLL;
 
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -836,28 +1086,21 @@ void UART_GPS_Callback() {
   }
   //USART1->CR1 |= USART_CR1_RXNEIE; // Enable Interrupt
 }
-/* USER CODE END 4 */
 
- /**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM6 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* USER CODE BEGIN Callback 0 */
-
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
-    HAL_IncTick();
+void timebase_callback() {
+  if((timebase % 1000) == 0) {
+    update_screen = 1;
   }
-  /* USER CODE BEGIN Callback 1 */
-
-  /* USER CODE END Callback 1 */
+  if((timebase % 100)) {
+    update_sensors = 1;
+  }
+  if((timebase % 33)) {
+    update_log = 1;
+  }
+  timebase++;
 }
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

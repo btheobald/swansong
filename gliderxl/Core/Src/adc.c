@@ -64,7 +64,7 @@ void MX_ADC2_Init(void)
   }
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_15;
+  sConfig.Channel = ADC_CHANNEL_VOPAMP2;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
@@ -135,7 +135,6 @@ void MX_ADC5_Init(void)
 void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 {
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(adcHandle->Instance==ADC2)
   {
   /* USER CODE BEGIN ADC2_MspInit 0 */
@@ -143,16 +142,6 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
   /* USER CODE END ADC2_MspInit 0 */
     /* ADC2 clock enable */
     __HAL_RCC_ADC12_CLK_ENABLE();
-
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**ADC2 GPIO Configuration
-    PB15     ------> ADC2_IN15
-    */
-    GPIO_InitStruct.Pin = Battery_Temperature_Sense_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(Battery_Temperature_Sense_GPIO_Port, &GPIO_InitStruct);
-
   /* USER CODE BEGIN ADC2_MspInit 1 */
 
   /* USER CODE END ADC2_MspInit 1 */
@@ -180,12 +169,6 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
   /* USER CODE END ADC2_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_ADC12_CLK_DISABLE();
-
-    /**ADC2 GPIO Configuration
-    PB15     ------> ADC2_IN15
-    */
-    HAL_GPIO_DeInit(Battery_Temperature_Sense_GPIO_Port, Battery_Temperature_Sense_Pin);
-
   /* USER CODE BEGIN ADC2_MspDeInit 1 */
 
   /* USER CODE END ADC2_MspDeInit 1 */

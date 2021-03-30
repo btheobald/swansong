@@ -36,7 +36,7 @@ extern SPI_HandleTypeDef SD_SPI_HANDLE;
 
 //(Note that the _256 is used as a mask to clear the prescalar bits as it provides binary 111 in the correct position)
 #define FCLK_SLOW() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_256); }	/* Set SCLK = slow, approx 280 KBits/s*/
-#define FCLK_FAST() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_32); }	/* Set SCLK = fast, approx 4.5 MBits/s */
+#define FCLK_FAST() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_64); }	/* Set SCLK = fast, approx 4.5 MBits/s */
 
 #define CS_HIGH()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);}
 #define CS_LOW()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);}
@@ -334,7 +334,7 @@ inline DSTATUS USER_SPI_initialize (
 
 	ty = 0;
 	if (send_cmd(CMD0, 0) == 1) {			/* Put the card SPI/Idle state */
-		SPI_Timer_On(1000);					/* Initialization timeout = 1 sec */
+		SPI_Timer_On(2000);					/* Initialization timeout = 1 sec */
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* SDv2? */
 			for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);	/* Get 32 bit return value of R7 resp */
 			if (ocr[2] == 0x01 && ocr[3] == 0xAA) {				/* Is the card supports vcc of 2.7-3.6V? */
