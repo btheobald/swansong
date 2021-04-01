@@ -645,60 +645,54 @@ int main(void)
     myprintf("- DMP Enable Accelerometer - Fail\r\n");
     while(1) {};
   }
-  /*if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Enable Rotation Vector - PASS\r\n");
   } else {
     myprintf("- DMP Enable Rotation Vector - Fail\r\n");
     while(1) {};
-  }*/
-  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+  }
+  /*if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Enable GRV - PASS\r\n");
   } else {
     myprintf("- DMP Enable GRV - Fail\r\n");
     while(1) {};
-  }
-  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GYROSCOPE, 1) == ICM_20948_Stat_Ok) {
+  }/*
+  /*if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GYROSCOPE, 1) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Enable Gyroscope - PASS\r\n");
   } else {
     myprintf("- DMP Enable Gyroscope - Fail\r\n");
     while(1) {};
-  }
-  if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GEOMAGNETIC_ROTATION_VECTOR, 1) == ICM_20948_Stat_Ok) {
+  }*/
+  /*if ( inv_icm20948_enable_dmp_sensor( &myICM, INV_ICM20948_SENSOR_GEOMAGNETIC_FIELD, 1) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Enable Geomagnetic Vector - PASS\r\n");
   } else {
     myprintf("- DMP Enable Geomagnetic Vector - Fail\r\n");
     while(1) {};
-  }
+  }*/
   if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Accel, 0) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Set Sensor Period - PASS\r\n");
   } else {
     myprintf("- DMP Set Sensor Period - Fail\r\n");
     while(1) {};
   }
-  /*if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok) {
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat9, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }
+  /*if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok) {
+    myprintf("- DMP Set Sensor Period - PASS\r\n");
+  } else {
+    myprintf("- DMP Set Sensor Period - Fail\r\n");
+    while(1) {};
+  }
+  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Cpass_Calibr, 2) == ICM_20948_Stat_Ok) {
     myprintf("- DMP Set Sensor Period - PASS\r\n");
   } else {
     myprintf("- DMP Set Sensor Period - Fail\r\n");
     while(1) {};
   }*/
-  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Quat6, 0) == ICM_20948_Stat_Ok) {
-    myprintf("- DMP Set Sensor Period - PASS\r\n");
-  } else {
-    myprintf("- DMP Set Sensor Period - Fail\r\n");
-    while(1) {};
-  }
-  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Gyro_Calibr, 0) == ICM_20948_Stat_Ok) {
-    myprintf("- DMP Set Sensor Period - PASS\r\n");
-  } else {
-    myprintf("- DMP Set Sensor Period - Fail\r\n");
-    while(1) {};
-  }
-  if ( inv_icm20948_set_dmp_sensor_period( &myICM, DMP_ODR_Reg_Geomag, 0) == ICM_20948_Stat_Ok) {
-    myprintf("- DMP Set Sensor Period - PASS\r\n");
-  } else {
-    myprintf("- DMP Set Sensor Period - Fail\r\n");
-    while(1) {};
-  }
 
   if ( ICM_20948_enable_FIFO( &myICM, 1) == ICM_20948_Stat_Ok ) {
     myprintf("- Enable FIFO - PASS\r\n");
@@ -812,18 +806,18 @@ int main(void)
   ssd1306_UpdateScreen();
   HAL_Delay(250);
 
-  sprintf(buf, "log%u%u%u.csv", (hgps.hours+1)%24, hgps.minutes, hgps.seconds);
+  sprintf(buf, "log%u%u.csv", (hgps.hours+1)%24, hgps.minutes);
 
   // Create file for logging
   fres = f_open(&fil, buf, FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
   if(fres != FR_OK) {
     ssd1306_SetCursor(0,24);
-    ssd1306_WriteString("Failed to open log", Font_6x8, White);
+    ssd1306_WriteString(buf, Font_6x8, White);
+    ssd1306_WriteString(" FAILED", Font_6x8, White);
     ssd1306_UpdateScreen();
     while(1) {};
   }
 
-  sprintf(buf, "log%u%u%u.csv", (hgps.hours+1)%24, hgps.minutes, hgps.seconds);
   ssd1306_SetCursor(0,24);
   ssd1306_WriteString(buf, Font_6x8, White);
   ssd1306_UpdateScreen();
@@ -833,20 +827,28 @@ int main(void)
 
   char logline[1024];
 
-  icm_20948_DMP_data_t data;
-  ICM_20948_Status_e read_stat;
-
   uint16_t batv, bati;
 
-  const float reftemp = 10.8f;
-  const float refpres = 1027.3f;
+  const float reftemp = 9.5f;
+  const float refpres = 1029.3f;
   const float atmo_const = -29.27112;
 
   uint32_t rot_q1, rot_q2, rot_q3, rot_acc;
   uint32_t grv_q1, grv_q2, grv_q3;
   uint32_t acc_x, acc_y, acc_z;
   uint32_t gyr_x, gyr_y, gyr_z;
-  uint32_t mag_q1, mag_q2, mag_q3, mag_acc;
+  uint32_t mag_x, mag_y, mag_z;
+
+  rot_q1 = 0;
+  rot_q2 = 0;
+  rot_q3 = 0;
+  rot_acc = 0;
+  acc_x = 0;
+  acc_y = 0;
+  acc_z = 0;
+
+  ICM_20948_Status_e read_stat;
+  icm_20948_DMP_data_t data;
 
   /* USER CODE END 2 */
 
@@ -888,7 +890,7 @@ int main(void)
       sprintf(buf, "%2.1fC %4.0fhPa %3.1fm", temperature, pressure, altitude );
       ssd1306_SetCursor(0,0);
       ssd1306_WriteString(buf, Font_6x8, White);
-      sprintf(buf, "%1.2fV %d %2d/%2d %3.1fm", (float)((2.5/4096)*batv)*2.0, bati, hgps.sats_in_use, hgps.sats_in_view, hgps.altitude);
+      sprintf(buf, "%1.2fV %2d/%2d %3.1fm", (float)((2.5/4096)*batv)*2.0, hgps.sats_in_use, hgps.sats_in_view, hgps.altitude);
       ssd1306_SetCursor(0,8);
       ssd1306_WriteString(buf, Font_6x8, White);
       sprintf(buf, "%.7f %.7f", hgps.latitude, hgps.longitude);
@@ -900,63 +902,63 @@ int main(void)
       ssd1306_UpdateScreen();
     }
 
-    read_stat = inv_icm20948_read_dmp_data( &myICM, &data );
+    
 
     //float qwqwMinusHalf = q0 * q0 - 0.5f; // calculate common terms to avoid repeated operations
     //float roll = atan2f(q2 * q3 - q0 * q1, qwqwMinusHalf + q3 * q3);
     //float pitch = -1.0f * asinf(2.0f * (q1 * q3 + q0 * q2));
     //float yaw = atan2f(q1 * q2 - q0 * q3, qwqwMinusHalf + q1 * q1);
-
+    
+    do {
+    read_stat = inv_icm20948_read_dmp_data( &myICM, &data );  
     if(read_stat == ICM_20948_Stat_Ok || read_stat == ICM_20948_Stat_FIFOMoreDataAvail ) {
-      /*if( (data.header & DMP_header_bitmap_Quat9) > 0 ) { 
+      if( (data.header & DMP_header_bitmap_Quat9) > 0 ) { 
         rot_q1 = (data.Quat9.Data.Q1);
         rot_q2 = (data.Quat9.Data.Q2);
         rot_q3 = (data.Quat9.Data.Q3);
-        rot_acc = (data.Quat9.Data.Accuracy);
 
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
-      }*/
-      if( (data.header & DMP_header_bitmap_Quat6) > 0 ) { 
+      }
+      /*if( (data.header & DMP_header_bitmap_Quat6) > 0 ) { 
         grv_q1 = (data.Quat6.Data.Q1);
         grv_q2 = (data.Quat6.Data.Q2);
         grv_q3 = (data.Quat6.Data.Q3);
 
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
-      }
+        //myprintf("Q6");
+      }*/
       if( (data.header & DMP_header_bitmap_Accel) > 0 ) { 
         acc_x = data.Raw_Accel.Data.X;
         acc_y = data.Raw_Accel.Data.Y;
         acc_z = data.Raw_Accel.Data.Z;
         
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
+        //myprintf("A");
       }
-      if( (data.header & DMP_header_bitmap_Gyro_Calibr)) {
+      /*if( (data.header & DMP_header_bitmap_Gyro_Calibr) > 0) {
         gyr_x = data.Gyro_Calibr.Data.X;
         gyr_y = data.Gyro_Calibr.Data.Y;
         gyr_z = data.Gyro_Calibr.Data.Z;
         
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
+        //myprintf("G");
       }
-      if( (data.header & DMP_header_bitmap_Geomag)) {
-        mag_q1 = data.Geomag.Data.Q1;
-        mag_q2 = data.Geomag.Data.Q2;
-        mag_q3 = data.Geomag.Data.Q3;
-        mag_acc = data.Geomag.Data.Accuracy;
+      if( (data.header & DMP_header_bitmap_Compass_Calibr) > 0) {
+        mag_x = data.Compass_Calibr.Data.X;
+        mag_y = data.Compass_Calibr.Data.Y;
+        mag_z = data.Compass_Calibr.Data.Z;
 
         HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_5);
-      }
+        //myprintf("M");
+      }*/
     }
+    }while(read_stat == ICM_20948_Stat_FIFOMoreDataAvail);
 
-  uint32_t ;
-  uint32_t grv_q1, grv_q2, grv_q3;
-  uint32_t acc_x, acc_y, acc_z;
-  uint32_t gyr_x, gyr_y, gyr_z;
-  uint32_t mag_q1, mag_q2, mag_q3, mag_acc;
+    //myprintf("\r\n");
 
     if(update_log) {
       update_log = 0;
-      sprintf(logline, "%u:%u:%u %d %d %.2f %.3f %.3f %.3f %.7f %.7f %.2f %.2f %u %u %.1f %.1f %.1f %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", hgps.hours, hgps.minutes, hgps.seconds, timebase, batv, temperature, pressure, altitude, hgps.altitude, hgps.latitude, hgps.longitude, hgps.speed, hgps.course, hgps.sats_in_use, hgps.sats_in_view, hgps.dop_h, hgps.dop_p, hgps.dop_v, rot_q1, rot_q2, rot_q3, rot_acc, grv_q1, grv_q2, grv_q3, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, mag_q1, mag_q2, mag_q3, mag_acc);
-      //sprintf(logline, "%u:%u:%u %d %d %.2f %.3f %.3f %.3f %.7f %.7f %.2f %.2f\r\n", hgps.hours, hgps.minutes, hgps.seconds, timebase, batv, temperature, pressure, altitude, hgps.altitude, hgps.latitude, hgps.longitude, hgps.speed, hgps.course);
+      sprintf(logline, "%u:%u:%u %d %d %.2f %.3f %.3f %.3f %.7f %.7f %.2f %.2f %u %u %.1f %.1f %.1f %lu %lu %lu %lu %lu %lu\r\n", hgps.hours, hgps.minutes, hgps.seconds, timebase, batv, temperature, pressure, altitude, hgps.altitude, hgps.latitude, hgps.longitude, hgps.speed, hgps.course, hgps.sats_in_use, hgps.sats_in_view, hgps.dop_h, hgps.dop_p, hgps.dop_v, rot_q1, rot_q2, rot_q3, acc_x, acc_y, acc_z);
       UINT bytesWrote;
       fres = f_write(&fil, logline, strlen(logline), &bytesWrote);
     }
@@ -1094,7 +1096,7 @@ void timebase_callback() {
   if((timebase % 100)) {
     update_sensors = 1;
   }
-  if((timebase % 33)) {
+  if((timebase % 20)) {
     update_log = 1;
   }
   timebase++;
